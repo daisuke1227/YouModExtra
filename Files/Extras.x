@@ -276,20 +276,6 @@ static void YouModPresentSleepTimerEndAtTime(YTPlayerViewController *player) {
     [YouModTopViewController() presentViewController:alert animated:YES completion:nil];
 }
 
-static NSString *YouModCurrentVideoID(YTPlayerViewController *player) {
-    // if (!videoID.length && [player respondsToSelector:@selector(contentVideoID)])
-    //     videoID = [player contentVideoID];
-    return [player currentVideoID];
-}
-
-static CGFloat YouModCurrentMediaTime(YTPlayerViewController *player) {
-    return [player currentVideoMediaTime];
-}
-
-static CGFloat YouModCurrentTotalTime(YTPlayerViewController *player) {
-    return [player currentVideoTotalMediaTime];
-}
-
 void YouModApplyYTLitePlaybackDefaults(YTPlayerViewController *player) {
     if (!player) return;
     YouModSleepTimerPlayer = player;
@@ -302,23 +288,6 @@ void YouModApplyYTLitePlaybackDefaults(YTPlayerViewController *player) {
             YouModApplyAutoQuality(player);
         });
     }
-}
-
-static NSTimeInterval YouModParseTimeString(NSString *text) {
-    NSArray *parts = [text componentsSeparatedByString:@":"];
-    if (parts.count == 2)
-        return [parts[0] doubleValue] * 60.0 + [parts[1] doubleValue];
-    if (parts.count == 3)
-        return [parts[0] doubleValue] * 3600.0 + [parts[1] doubleValue] * 60.0 + [parts[2] doubleValue];
-    return [text doubleValue];
-}
-
-static NSString *YouModSponsorBlockPreciseTimeString(NSTimeInterval time) {
-    NSInteger totalSeconds = (NSInteger)time;
-    NSInteger frac = (NSInteger)((time - totalSeconds) * 1000);
-    return frac > 0
-        ? [NSString stringWithFormat:@"%ld:%02ld.%03ld", (long)(totalSeconds / 60), (long)(totalSeconds % 60), (long)frac]
-        : [NSString stringWithFormat:@"%ld:%02ld", (long)(totalSeconds / 60), (long)(totalSeconds % 60)];
 }
 
 static NSString *YouModEndTimeStringForVideo(YTSingleVideoController *video, YTSingleVideoTime *time) {
