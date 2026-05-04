@@ -115,9 +115,7 @@
 #define PersistentProgressBar @"YouModPersistentProgressBar"
 #define StockVolumeHUD @"YouModStockVolumeHUD"
 #define RedProgressBar @"YouModRedProgressBar"
-#define NoHUDMessages @"YouModNoHUDMessages"
 #define PauseOnOverlay @"YouModPauseOnOverlay"
-#define DontSnapToChapter @"YouModDontSnapToChapter"
 #define NoTwoFingerSnapToChapter @"YouModNoTwoFingerSnapToChapter"
 #define NoFreeZoom @"YouModNoFreeZoom"
 #define VideoEndTime @"YouModVideoEndTime"
@@ -180,8 +178,6 @@
 #define HideCreateButton @"YouModHideCreateButton"
 #define HideSubscriptTab @"YouModHideSubscriptionsTab"
 #define HideLibraryTab @"YouModHideLibraryTab"
-#define RestoreExploreTab @"YouModRestoreExploreTab"
-#define AddExploreTab @"YouModAddExploreTab"
 
 #define BackgroundPlayback @"YouModEnablesBackgroundPlayback"
 #define DisablesShortsPiP @"YouModTrytoDisablesShortsPiP"
@@ -212,13 +208,7 @@
 #define HideSortComments @"YouModHideSortComments"
 #define PlaylistOldMinibar @"YouModPlaylistOldMinibar"
 #define DisableRTL @"YouModDisableRTL"
-#define SponsorBlockEnabled @"YouModSponsorBlockEnabled"
-#define SponsorBlockNotifications @"YouModSponsorBlockNotifications"
-#define SponsorBlockPlayerButton @"YouModSponsorBlockPlayerButton"
-#define SponsorBlockSegmentMarkers @"YouModSponsorBlockSegmentMarkers"
-#define SponsorBlockUserID @"YouModSponsorBlockUserID"
 #define SleepTimerEnabled @"YouModSleepTimerEnabled"
-
 
 #define YT_BUNDLE_ID @"com.google.ios.youtube"
 #define YT_NAME @"YouTube"
@@ -341,6 +331,8 @@ typedef NS_ENUM(NSUInteger, GestureSection) {
 
 @interface YTMainAppVideoPlayerOverlayViewController (YouMod)
 @property (nonatomic, strong, readwrite) YTPlayerBarController *playerBarController;
+@property (nonatomic, strong, readonly) NSString *videoID;
+@property (nonatomic, strong, readonly) CGFloat *mediaTime;
 @end
 
 @interface YTInlinePlayerBarContainerView (YouMod)
