@@ -21,7 +21,7 @@
 @end
 
 @interface YTPlayerViewController (YouModDownload)
-- (YTPlayerResponse *)playerResponse;
+- (YTPlayerResponse *)contentPlayerResponse;
 @end
 
 @interface YTIPlayerResponse (YouModDownload)
@@ -582,12 +582,10 @@ static UIViewController *YouModTopViewController(UIViewController *root) {
 
 static void YouModSendToast(NSString *message, id responder) {
     Class toastClass = NSClassFromString(@"YTToastResponderEvent");
-    if (toastClass && [toastClass respondsToSelector:@selector(eventWithMessage:firstResponder:)]) {
-        id event = [toastClass eventWithMessage:message firstResponder:responder ?: YouModTopViewController(nil)];
-        if ([event respondsToSelector:@selector(send)]) {
-            [event send];
-            return;
-        }
+    id event = [toastClass eventWithMessage:message firstResponder:responder ?: YouModTopViewController(nil)];
+    if ([event respondsToSelector:@selector(send)]) {
+        [event send];
+        return;
     }
 
     UIViewController *presenter = YouModTopViewController([responder isKindOfClass:UIViewController.class] ? responder : nil);
@@ -642,10 +640,8 @@ static NSString *YouModURLStringWithCPN(NSString *urlString) {
     if (urlString.length == 0) return urlString;
     urlString = YouModURLStringBypassingThrottle(urlString);
     if ([urlString containsString:@"cpn="]) return urlString;
-    NSString *cpn = nil;
+    NSString *cpn = ((id (*)(Class, SEL))objc_msgSend)(ytDataUtils, @selector(generateClientSideNonce));
     Class ytDataUtils = NSClassFromString(@"YTDataUtils");
-    if ([ytDataUtils respondsToSelector:@selector(generateClientSideNonce)])
-        cpn = ((id (*)(Class, SEL))objc_msgSend)(ytDataUtils, @selector(generateClientSideNonce));
     if (![cpn isKindOfClass:NSString.class] || cpn.length == 0)
         cpn = YouModGenerateCPN();
     NSString *separator = [urlString containsString:@"?"] ? @"&" : @"?";
@@ -1213,29 +1209,24 @@ static NSString *YouModFormatSubtitle(YouModMediaFormat *format) {
 }
 
 static NSString *YouModVideoIDForPlayer(YTPlayerViewController *player) {
-    NSString *videoID = nil;
-    if ([player respondsToSelector:@selector(contentVideoID)])
-        videoID = [player contentVideoID];
-    if (videoID.length == 0 && [player respondsToSelector:@selector(currentVideoID)])
+    NSString *videoID = [player contentVideoID];
+    if (videoID.length == 0)
         videoID = [player currentVideoID];
     return videoID;
 }
 
 static NSArray *YouModPlayerResponsesForPlayer(YTPlayerViewController *player) {
     NSMutableArray *responses = [NSMutableArray array];
-    id response = YouModObjectFromSelector(player, @selector(playerResponse));
+    id response = YouModObjectFromSelector(player, @selector(contentPlayerResponse));
     if (response) [responses addObject:response];
-    response = YouModObjectFromSelector(player, @selector(contentPlayerResponse));
-    if (response && ![responses containsObject:response]) [responses addObject:response];
 
     id activeVideo = YouModObjectFromSelector(player, @selector(activeVideo));
-    response = YouModObjectFromSelector(activeVideo, @selector(playerResponse));
-    if (response && ![responses containsObject:response]) [responses addObject:response];
     response = YouModObjectFromSelector(activeVideo, @selector(contentPlayerResponse));
     if (response && ![responses containsObject:response]) [responses addObject:response];
     return responses.copy;
 }
 
+// Where is this going to?
 static NSArray *YouModCaptionTracksForPlayer(YTPlayerViewController *player) {
     for (id response in YouModPlayerResponsesForPlayer(player)) {
         id playerData = YouModObjectFromSelector(response, @selector(playerData)) ?: response;
@@ -2390,6 +2381,16 @@ void YouModConfigureDownloadButton(_ASDisplayView *view) {
 %end
 
 NSString *YouModGlobalAuthHeader = nil;
+
+%hook SSOAuthorization
+- (id)accessToken {
+    id token = %orig;
+    if ([token isKindOfClass:[NSString class]] && [(NSString *)token length] > 0) {
+        YouModGlobalAuthHeader = [NSString stringWithFormat:@"Bearer %@", token];
+    }
+    return token;
+}
+%end
 
 %hook SSOAuthorizationImpl
 - (id)accessToken {
