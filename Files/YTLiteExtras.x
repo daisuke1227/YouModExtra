@@ -685,6 +685,127 @@ static void YouModSponsorBlockChangeCategory(YTPlayerViewController *player, NSD
     });
 }
 
+static void YouModSponsorBlockDeleteSegment(YTPlayerViewController *player, NSDictionary *segment) {
+    NSString *uuid = segment[@"uuid"];
+    if (!uuid.length) {
+        YouModShowToast(@"No UUID to delete", player);
+        return;
+    }
+    NSString *videoID = YouModCurrentVideoID(player);
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Delete segment?" message:@"This downvotes your own segment to remove it. This cannot be undone." preferredStyle:UIAlertControllerStyleAlert];
+    [alert addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
+    [alert addAction:[UIAlertAction actionWithTitle:@"Delete" style:UIAlertActionStyleDestructive handler:^(__unused UIAlertAction *action) {
+        NSMutableDictionary *query = [@{@"UUID": uuid, @"userID": YouModSponsorBlockUserIDValue(), @"type": @0} mutableCopy];
+        if (videoID.length) query[@"videoID"] = videoID;
+        YouModSponsorBlockPOST(@"voteOnSponsorTime", query, nil, ^(BOOL ok, NSString *message, __unused id json) {
+            if (ok && videoID.length) {
+                @synchronized (YouModSponsorBlockSegments()) {
+                    [YouModSponsorBlockSegments() removeObjectForKey:videoID];
+                }
+                YouModSponsorBlockFetchIfNeeded(player);
+            }
+            YouModShowToast(ok ? @"Segment deleted" : message, player);
+        });
+    }]];
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [YouModTopViewController() presentViewController:alert animated:YES completion:nil];
+    });
+}
+
+static NSTimeInterval YouModParseTimeString(NSString *text) {
+    NSArray *parts = [text componentsSeparatedByString:@":"];
+    if (parts.count == 2)
+        return [parts[0] doubleValue] * 60.0 + [parts[1] doubleValue];
+    if (parts.count == 3)
+        return [parts[0] doubleValue] * 3600.0 + [parts[1] doubleValue] * 60.0 + [parts[2] doubleValue];
+    return [text doubleValue];
+}
+
+static NSString *YouModSponsorBlockPreciseTimeString(NSTimeInterval time) {
+    NSInteger totalSeconds = (NSInteger)time;
+    NSInteger frac = (NSInteger)((time - totalSeconds) * 1000);
+    return frac > 0
+        ? [NSString stringWithFormat:@"%ld:%02ld.%03ld", (long)(totalSeconds / 60), (long)(totalSeconds % 60), (long)frac]
+        : [NSString stringWithFormat:@"%ld:%02ld", (long)(totalSeconds / 60), (long)(totalSeconds % 60)];
+}
+
+static void YouModSponsorBlockEditSegment(YTPlayerViewController *player, NSDictionary *segment) {
+    NSString *uuid = segment[@"uuid"];
+    if (!uuid.length) {
+        YouModShowToast(@"No UUID to edit", player);
+        return;
+    }
+    NSString *videoID = YouModCurrentVideoID(player);
+    if (!videoID.length) return;
+
+    NSTimeInterval oldStart = [segment[@"start"] doubleValue];
+    NSTimeInterval oldEnd = [segment[@"end"] doubleValue];
+    NSString *category = segment[@"category"] ?: @"sponsor";
+    NSString *actionType = segment[@"actionType"] ?: @"skip";
+    BOOL isHighlight = [category isEqualToString:@"poi_highlight"] || [actionType isEqualToString:@"poi"];
+
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Edit segment" message:@"Adjust start/end times then submit. This removes the old segment and submits a new one." preferredStyle:UIAlertControllerStyleAlert];
+    [alert addTextFieldWithConfigurationHandler:^(UITextField *tf) {
+        tf.placeholder = @"Start (m:ss or m:ss.ms)";
+        tf.text = YouModSponsorBlockPreciseTimeString(oldStart);
+        tf.keyboardType = UIKeyboardTypeDecimalPad;
+    }];
+    if (!isHighlight) {
+        [alert addTextFieldWithConfigurationHandler:^(UITextField *tf) {
+            tf.placeholder = @"End (m:ss or m:ss.ms)";
+            tf.text = YouModSponsorBlockPreciseTimeString(oldEnd);
+            tf.keyboardType = UIKeyboardTypeDecimalPad;
+        }];
+    }
+    [alert addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
+    [alert addAction:[UIAlertAction actionWithTitle:@"Save" style:UIAlertActionStyleDefault handler:^(__unused UIAlertAction *action) {
+        NSTimeInterval newStart = YouModParseTimeString(alert.textFields.firstObject.text);
+        NSTimeInterval newEnd = isHighlight ? newStart : YouModParseTimeString(alert.textFields.lastObject.text);
+        if (!isHighlight && newEnd - newStart < 0.5) {
+            YouModShowToast(@"Segment must be at least 0.5 seconds", player);
+            return;
+        }
+
+        // step 1: downvote the old segment
+        NSMutableDictionary *deleteQuery = [@{@"UUID": uuid, @"userID": YouModSponsorBlockUserIDValue(), @"type": @0} mutableCopy];
+        if (videoID.length) deleteQuery[@"videoID"] = videoID;
+        YouModSponsorBlockPOST(@"voteOnSponsorTime", deleteQuery, nil, ^(BOOL delOk, NSString *delMsg, __unused id delJson) {
+            if (!delOk) {
+                YouModShowToast([NSString stringWithFormat:@"Delete failed: %@", delMsg], player);
+                return;
+            }
+
+            // step 2: submit the corrected segment
+            NSDictionary *seg = @{
+                @"segment": isHighlight ? @[@(newStart), @(newStart)] : @[@(newStart), @(newEnd)],
+                @"category": category,
+                @"actionType": actionType,
+                @"description": @"",
+            };
+            NSDictionary *body = @{
+                @"videoID": videoID,
+                @"userID": YouModSponsorBlockUserIDValue(),
+                @"userAgent": @"YouMod/1.2.3",
+                @"service": @"YouTube",
+                @"videoDuration": @(YouModCurrentTotalTime(player)),
+                @"segments": @[seg],
+            };
+            YouModSponsorBlockPOST(@"skipSegments", @{}, body, ^(BOOL subOk, NSString *subMsg, __unused id subJson) {
+                if (subOk) {
+                    @synchronized (YouModSponsorBlockSegments()) {
+                        [YouModSponsorBlockSegments() removeObjectForKey:videoID];
+                    }
+                    YouModSponsorBlockFetchIfNeeded(player);
+                }
+                YouModShowToast(subOk ? @"Segment edited" : [NSString stringWithFormat:@"Submit failed: %@", subMsg], player);
+            });
+        });
+    }]];
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [YouModTopViewController() presentViewController:alert animated:YES completion:nil];
+    });
+}
+
 static void YouModSponsorBlockPresentCategoryChangeSheet(YTPlayerViewController *player, NSDictionary *segment) {
     YTDefaultSheetController *sheet = [%c(YTDefaultSheetController) sheetControllerWithParentResponder:nil];
     for (NSDictionary *category in YouModSponsorBlockCategories()) {
@@ -708,6 +829,12 @@ static void YouModSponsorBlockPresentSegmentSheet(YTPlayerViewController *player
     }]];
     [sheet addAction:[%c(YTActionSheetAction) actionWithTitle:[NSString stringWithFormat:@"Skip %@", title] iconImage:YouModYTImageNamed(@"yt_outline_fast_forward_24pt", @"forward.end") style:0 handler:^(__unused YTActionSheetAction *action) {
         YouModSponsorBlockCompleteSkip(player, segment, end > start ? end : start, [NSString stringWithFormat:@"Skipped %@", title]);
+    }]];
+    [sheet addAction:[%c(YTActionSheetAction) actionWithTitle:@"Edit segment" iconImage:YouModYTImageNamed(@"yt_outline_edit_24pt", @"pencil") style:0 handler:^(__unused YTActionSheetAction *action) {
+        YouModSponsorBlockEditSegment(player, segment);
+    }]];
+    [sheet addAction:[%c(YTActionSheetAction) actionWithTitle:@"Delete segment" iconImage:YouModYTImageNamed(@"yt_outline_trash_24pt", @"trash") style:0 handler:^(__unused YTActionSheetAction *action) {
+        YouModSponsorBlockDeleteSegment(player, segment);
     }]];
     [sheet addAction:[%c(YTActionSheetAction) actionWithTitle:@"Upvote segment" iconImage:YouModYTImageNamed(@"yt_outline_like_24pt", @"hand.thumbsup") style:0 handler:^(__unused YTActionSheetAction *action) {
         YouModSponsorBlockVote(player, segment, 1);
@@ -947,17 +1074,17 @@ static void YouModSponsorBlockFindTrackCandidate(UIView *view, UIView *root, UIV
     }
 }
 
-static CGRect YouModSponsorBlockTrackFrame(YTInlinePlayerBarContainerView *bar) {
-    if (!YouModSponsorBlockViewIsVisible(bar, bar)) return CGRectNull;
+static UIView *YouModSponsorBlockFindTrack(YTInlinePlayerBarContainerView *bar) {
+    if (!YouModSponsorBlockViewIsVisible(bar, bar)) return nil;
 
     UIView *trackView = nil;
     CGFloat bestScore = -CGFLOAT_MAX;
     YouModSponsorBlockFindTrackCandidate(bar, bar, &trackView, &bestScore);
-    if (!trackView) return CGRectNull;
+    if (!trackView) return nil;
 
     CGRect frame = [trackView convertRect:trackView.bounds toView:bar];
-    if (CGRectGetWidth(frame) < 80.0 || CGRectGetHeight(frame) < 1.0) return CGRectNull;
-    return frame;
+    if (CGRectGetWidth(frame) < 80.0 || CGRectGetHeight(frame) < 1.0) return nil;
+    return trackView;
 }
 
 %hook YTInlinePlayerBarContainerView
@@ -966,8 +1093,13 @@ static CGRect YouModSponsorBlockTrackFrame(YTInlinePlayerBarContainerView *bar) 
     YouModSponsorBlockRemoveMarkers(self);
     if (!IS_ENABLED(SponsorBlockEnabled) || !IS_ENABLED(SponsorBlockSegmentMarkers)) return;
 
-    CGRect trackFrame = YouModSponsorBlockTrackFrame(self);
-    if (CGRectIsNull(trackFrame)) return;
+    UIView *trackView = YouModSponsorBlockFindTrack(self);
+    if (!trackView) return;
+
+    UIView *fadeView = trackView;
+    while (fadeView.superview && fadeView.superview != self) {
+        fadeView = fadeView.superview;
+    }
 
     YTPlayerViewController *player = YouModSponsorBlockCurrentPlayer;
     NSString *videoID = YouModCurrentVideoID(player);
@@ -975,9 +1107,12 @@ static CGRect YouModSponsorBlockTrackFrame(YTInlinePlayerBarContainerView *bar) 
     CGFloat totalTime = YouModCurrentTotalTime(player);
     if (!segments.count || totalTime <= 0.0) return;
 
+    CGRect trackFrame = [trackView convertRect:trackView.bounds toView:fadeView];
     CGFloat trackWidth = CGRectGetWidth(trackFrame);
-    CGFloat markerHeight = MAX(2.0, MIN(4.0, CGRectGetHeight(trackFrame)));
-    CGFloat y = CGRectGetMidY(trackFrame) - (markerHeight * 0.5);
+    CGFloat markerHeight = CGRectGetHeight(trackFrame);
+    CGFloat y = CGRectGetMinY(trackFrame);
+    CGFloat minX = CGRectGetMinX(trackFrame);
+    
     for (NSDictionary *segment in segments) {
         NSString *category = segment[@"category"];
         if (YouModSponsorBlockActionForCategory(category) == YouModSponsorBlockActionDisable) continue;
@@ -985,16 +1120,15 @@ static CGRect YouModSponsorBlockTrackFrame(YTInlinePlayerBarContainerView *bar) 
         CGFloat end = [segment[@"end"] doubleValue];
         if (end <= start) end = start + MAX(1.0, totalTime * 0.004);
 
-        CGFloat x = CGRectGetMinX(trackFrame) + MAX(0.0, MIN(trackWidth, trackWidth * (start / totalTime)));
-        CGFloat width = MAX(2.0, MIN(CGRectGetMaxX(trackFrame) - x, trackWidth * ((end - start) / totalTime)));
+        CGFloat x = minX + MAX(0.0, MIN(trackWidth, trackWidth * (start / totalTime)));
+        CGFloat width = MAX(2.0, MIN(trackWidth - (x - minX), trackWidth * ((end - start) / totalTime)));
         if (width <= 0.0) continue;
 
         UIView *marker = [[UIView alloc] initWithFrame:CGRectMake(x, y, width, markerHeight)];
         marker.tag = YouModSponsorBlockMarkerTag;
         marker.userInteractionEnabled = NO;
         marker.backgroundColor = YouModSponsorBlockColorForCategory(category);
-        marker.layer.cornerRadius = markerHeight * 0.5;
-        [self addSubview:marker];
+        [fadeView addSubview:marker];
     }
 }
 
@@ -1095,8 +1229,8 @@ static void YouModManageHoldToSpeed(UILongPressGestureRecognizer *gesture, YTMai
         [self addSubview:button];
         objc_setAssociatedObject(self, @selector(YouModSponsorBlockButtonTapped:), button, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     }
-    CGFloat top = self.safeAreaInsets.top + 10.0;
-    button.frame = CGRectMake(12.0, top, 32.0, 32.0);
+    CGFloat bottom = CGRectGetHeight(self.bounds) - self.safeAreaInsets.bottom - 80.0;
+    button.frame = CGRectMake(12.0, bottom, 32.0, 32.0);
     [self bringSubviewToFront:button];
 }
 

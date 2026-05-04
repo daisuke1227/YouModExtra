@@ -769,6 +769,55 @@ static NSString *GetCacheSize() { // YTLite - @dayanch96
                 }
             ],
             [YTSettingsSectionItemClass itemWithTitle:nil
+                titleDescription:@"SponsorBlock ID"
+                accessibilityIdentifier:nil
+                detailTextBlock:nil
+                selectBlock:^BOOL (YTSettingsCell *cell, NSUInteger arg1) {
+                    return NO;
+                }
+            ],
+            [YTSettingsSectionItemClass itemWithTitle:@"Export SponsorBlock ID"
+                titleDescription:@"Save your user ID to a file. Keep this safe — it controls your voting and submission history."
+                accessibilityIdentifier:nil
+                detailTextBlock:nil
+                selectBlock:^BOOL (YTSettingsCell *cell, NSUInteger arg1) {
+                    [[YouModPrefsManager sharedManager] exportSponsorBlockIDFromVC:settingsViewController];
+                    return YES;
+                }
+            ],
+            [YTSettingsSectionItemClass itemWithTitle:@"Copy SponsorBlock ID"
+                titleDescription:@"Copy your user ID to the clipboard."
+                accessibilityIdentifier:nil
+                detailTextBlock:nil
+                selectBlock:^BOOL (YTSettingsCell *cell, NSUInteger arg1) {
+                    [[YouModPrefsManager sharedManager] copySponsorBlockID];
+                    return YES;
+                }
+            ],
+            [YTSettingsSectionItemClass itemWithTitle:@"Import SponsorBlock ID"
+                titleDescription:@"Restore a previously exported user ID from a file."
+                accessibilityIdentifier:nil
+                detailTextBlock:nil
+                selectBlock:^BOOL (YTSettingsCell *cell, NSUInteger arg1) {
+                    YTAlertView *alertView = [%c(YTAlertView) confirmationDialogWithAction:^{
+                        [[YouModPrefsManager sharedManager] importSponsorBlockIDFromVC:settingsViewController];
+                    } actionTitle:LOC(@"YES")];
+                    alertView.title = @"Warning";
+                    alertView.subtitle = @"Importing a user ID will replace your current one. All your votes and submissions will be tied to the imported ID. Are you sure?";
+                    [alertView show];
+                    return YES;
+                }
+            ],
+            [YTSettingsSectionItemClass itemWithTitle:@"Paste SponsorBlock ID"
+                titleDescription:@"Restore a user ID from the clipboard."
+                accessibilityIdentifier:nil
+                detailTextBlock:nil
+                selectBlock:^BOOL (YTSettingsCell *cell, NSUInteger arg1) {
+                    [[YouModPrefsManager sharedManager] pasteSponsorBlockID];
+                    return YES;
+                }
+            ],
+            [YTSettingsSectionItemClass itemWithTitle:nil
                 titleDescription:LOC(@"CACHE")
                 accessibilityIdentifier:nil
                 detailTextBlock:nil

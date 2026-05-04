@@ -316,6 +316,10 @@ typedef NS_ENUM(NSUInteger, GestureSection) {
 - (void)exportYouModSettingsFromVC:(UIViewController *)vc;
 - (void)importYouModSettingsFromVC:(UIViewController *)vc;
 - (void)restoreYouModDefaults;
+- (void)exportSponsorBlockIDFromVC:(UIViewController *)vc;
+- (void)copySponsorBlockID;
+- (void)importSponsorBlockIDFromVC:(UIViewController *)vc;
+- (void)pasteSponsorBlockID;
 @end
 
 // Player Gestures - @bhackel (YTLitePlus)

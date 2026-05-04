@@ -39,7 +39,7 @@ jobs:
         run: |
           mkdir -p YouMod/Vendor/FFmpegKit
           cd YouMod/Vendor/FFmpegKit
-          wget -q -O ffmpegkit-frameworks.zip https://github.com/daisuke1227/YouMod/releases/download/ffmpegkit/ffmpegkit-frameworks.zip
+          wget -q -O ffmpegkit-frameworks.zip https://github.com/daisuke1227/YouModExtra/releases/download/ffmpegkit/ffmpegkit-frameworks.zip
           unzip -o -q ffmpegkit-frameworks.zip
           rm ffmpegkit-frameworks.zip
 

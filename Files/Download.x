@@ -45,18 +45,31 @@
 - (NSString *)shortDescription;
 @end
 
+static UIImage *YouModIconImage(NSInteger iconType) {
+    YTIIcon *icon = [%c(YTIIcon) new];
+    icon.iconType = iconType;
+    UIImage *image = [icon iconImageWithColor:[UIColor labelColor]];
+    return [image imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
+}
+
 @interface YouModMenuItem : NSObject
 @property (nonatomic, copy) NSString *title;
 @property (nonatomic, copy) NSString *subtitle;
+@property (nonatomic, strong) UIImage *iconImage;
 @property (nonatomic, copy) void (^handler)(void);
 + (instancetype)itemWithTitle:(NSString *)title subtitle:(NSString *)subtitle handler:(void (^)(void))handler;
++ (instancetype)itemWithTitle:(NSString *)title subtitle:(NSString *)subtitle icon:(UIImage *)icon handler:(void (^)(void))handler;
 @end
 
 @implementation YouModMenuItem
 + (instancetype)itemWithTitle:(NSString *)title subtitle:(NSString *)subtitle handler:(void (^)(void))handler {
+    return [self itemWithTitle:title subtitle:subtitle icon:nil handler:handler];
+}
++ (instancetype)itemWithTitle:(NSString *)title subtitle:(NSString *)subtitle icon:(UIImage *)icon handler:(void (^)(void))handler {
     YouModMenuItem *item = [YouModMenuItem new];
     item.title = title;
     item.subtitle = subtitle;
+    item.iconImage = icon;
     item.handler = handler;
     return item;
 }
@@ -149,6 +162,8 @@ typedef void (^YouModRangeDownloadProgress)(unsigned long long completedBytes);
 @property (nonatomic, assign) BOOL active;
 @property (nonatomic, assign) BOOL finishedCurrentFile;
 @property (nonatomic, assign) BOOL cancelled;
+@property (nonatomic, copy) NSString *baseProgressTitle;
+@property (nonatomic, assign) NSTimeInterval downloadStartTime;
 + (instancetype)sharedCoordinator;
 - (void)startVideoDownloadWithVideoFormat:(YouModMediaFormat *)videoFormat audioFormat:(YouModMediaFormat *)audioFormat fileName:(NSString *)fileName videoID:(NSString *)videoID presenter:(UIViewController *)presenter;
 - (void)startAudioDownloadWithAudioFormat:(YouModMediaFormat *)audioFormat fileName:(NSString *)fileName videoID:(NSString *)videoID presenter:(UIViewController *)presenter;
@@ -1546,7 +1561,7 @@ static void YouModPresentMenu(NSString *title, NSArray <YouModMenuItem *> *items
         for (YouModMenuItem *item in items) {
             id action = nil;
             if ([actionClass respondsToSelector:@selector(actionWithTitle:subtitle:iconImage:handler:)]) {
-                action = ((id (*)(Class, SEL, NSString *, NSString *, UIImage *, id))objc_msgSend)(actionClass, @selector(actionWithTitle:subtitle:iconImage:handler:), item.title, item.subtitle, nil, ^(__unused id action) {
+                action = ((id (*)(Class, SEL, NSString *, NSString *, UIImage *, id))objc_msgSend)(actionClass, @selector(actionWithTitle:subtitle:iconImage:handler:), item.title, item.subtitle, item.iconImage, ^(__unused id action) {
                     if (item.handler) item.handler();
                 });
             } else {
@@ -1605,7 +1620,9 @@ static void YouModPresentMenu(NSString *title, NSArray <YouModMenuItem *> *items
 
 - (void)showProgressWithTitle:(NSString *)title presenter:(UIViewController *)presenter {
     self.presenter = presenter;
-    self.progressAlert = [UIAlertController alertControllerWithTitle:title message:@"\n\n0%" preferredStyle:UIAlertControllerStyleAlert];
+    self.baseProgressTitle = title;
+    self.downloadStartTime = [NSDate timeIntervalSinceReferenceDate];
+    self.progressAlert = [UIAlertController alertControllerWithTitle:[NSString stringWithFormat:@"%@ - 0%%", title] message:@"\n" preferredStyle:UIAlertControllerStyleAlert];
     self.progressView = [[UIProgressView alloc] initWithProgressViewStyle:UIProgressViewStyleDefault];
     self.progressView.progress = 0.0;
     self.progressView.translatesAutoresizingMaskIntoConstraints = NO;
@@ -1623,8 +1640,8 @@ static void YouModPresentMenu(NSString *title, NSArray <YouModMenuItem *> *items
 }
 
 - (void)updateProgressTitle:(NSString *)title progress:(float)progress {
-    self.progressAlert.title = title;
-    self.progressAlert.message = [NSString stringWithFormat:@"\n\n%ld%%", (long)lrintf(progress * 100.0f)];
+    self.progressAlert.title = [NSString stringWithFormat:@"%@ - %ld%%", title, (long)lrintf(progress * 100.0f)];
+    self.progressAlert.message = @"\n";
     [self.progressView setProgress:progress animated:YES];
 }
 
@@ -1735,7 +1752,22 @@ static void YouModPresentMenu(NSString *title, NSArray <YouModMenuItem *> *items
     unsigned long long total = self.totalBytes ?: expectedBytes;
     float progress = total ? (float)(self.completedBytes + currentBytes) / (float)total : 0.0f;
     progress = fminf(fmaxf(progress, 0.0f), 0.985f);
-    [self updateProgressTitle:self.progressAlert.title ?: @"Downloading" progress:progress];
+    
+    NSTimeInterval now = [NSDate timeIntervalSinceReferenceDate];
+    NSTimeInterval elapsed = now - self.downloadStartTime;
+    double speedMBps = 0;
+    if (elapsed > 0) {
+        speedMBps = ((double)(self.completedBytes + currentBytes) / 1048576.0) / elapsed;
+    }
+    double totalMB = (double)total / 1048576.0;
+    
+    self.progressAlert.title = [NSString stringWithFormat:@"%@ - %ld%%", self.baseProgressTitle ?: @"Downloading", (long)lrintf(progress * 100.0f)];
+    if (total > 0) {
+        self.progressAlert.message = [NSString stringWithFormat:@"%.1f MB/s - %.1f MB\n", speedMBps, totalMB];
+    } else {
+        self.progressAlert.message = [NSString stringWithFormat:@"%.1f MB/s\n", speedMBps];
+    }
+    [self.progressView setProgress:progress animated:YES];
 }
 
 - (void)adjustCurrentExpectedBytesIfNeeded:(unsigned long long)newExpectedBytes {
@@ -2183,7 +2215,7 @@ static void YouModShowVideoQualitySheet(YTPlayerViewController *player, UIViewCo
     for (YouModMediaFormat *format in videoFormats) {
         NSString *rowTitle = format.qualityLabel.length ? format.qualityLabel : @"Video";
         NSString *subtitle = YouModFormatSubtitle(format);
-        [items addObject:[YouModMenuItem itemWithTitle:rowTitle subtitle:subtitle handler:^{
+        [items addObject:[YouModMenuItem itemWithTitle:rowTitle subtitle:subtitle icon:YouModIconImage(57) handler:^{
             [[YouModDownloadCoordinator sharedCoordinator] startVideoDownloadWithVideoFormat:format audioFormat:audioFormat fileName:title videoID:videoID presenter:presenter];
         }]];
     }
@@ -2209,7 +2241,7 @@ static void YouModShowAudioSourceSheet(YTPlayerViewController *player, YouModAud
     for (YouModMediaFormat *format in audioFormats) {
         NSString *rowTitle = audioFormats.count == 1 ? @"Audio" : [NSString stringWithFormat:@"Audio %lu", (unsigned long)index++];
         NSString *subtitle = YouModFormatSubtitle(format);
-        [items addObject:[YouModMenuItem itemWithTitle:rowTitle subtitle:subtitle handler:^{
+        [items addObject:[YouModMenuItem itemWithTitle:rowTitle subtitle:subtitle icon:YouModIconImage(21) handler:^{
             [[YouModDownloadCoordinator sharedCoordinator] startAudioDownloadWithAudioFormat:format fileName:title videoID:videoID outputFormat:outputFormat presenter:presenter];
         }]];
     }
@@ -2220,7 +2252,7 @@ static void YouModShowAudioSourceSheet(YTPlayerViewController *player, YouModAud
 static void YouModShowAudioSheet(YTPlayerViewController *player, UIViewController *presenter, UIView *sender) {
     NSMutableArray *items = [NSMutableArray array];
     for (YouModAudioOutputFormat *format in YouModAudioOutputFormats()) {
-        [items addObject:[YouModMenuItem itemWithTitle:format.title subtitle:YouModAudioOutputSubtitle(format) handler:^{
+        [items addObject:[YouModMenuItem itemWithTitle:format.title subtitle:YouModAudioOutputSubtitle(format) icon:YouModIconImage(21) handler:^{
             if (!format.supported) {
                 YouModSendToast(@"DSD export is not supported by bundled FFmpeg.", presenter);
                 return;
@@ -2255,7 +2287,7 @@ static void YouModShowCaptionsSheet(YTPlayerViewController *player, UIViewContro
         if (!nameStr.length) nameStr = languageCode;
         if (!nameStr.length) nameStr = vssId;
         
-        [items addObject:[YouModMenuItem itemWithTitle:nameStr subtitle:languageCode handler:^{
+        [items addObject:[YouModMenuItem itemWithTitle:nameStr subtitle:languageCode icon:YouModIconImage(637) handler:^{
             NSString *vttURL = [baseURL stringByAppendingString:@"&fmt=vtt"];
             NSURL *url = [NSURL URLWithString:vttURL];
             if (!url) {
@@ -2295,22 +2327,22 @@ static void YouModShowDownloadManager(YTPlayerViewController *player, UIViewCont
 
     NSString *videoID = YouModVideoIDForPlayer(player);
     NSMutableArray *items = [NSMutableArray array];
-    [items addObject:[YouModMenuItem itemWithTitle:@"Download video" subtitle:@"Choose quality" handler:^{
+    [items addObject:[YouModMenuItem itemWithTitle:@"Download video" subtitle:@"Choose quality" icon:YouModIconImage(57) handler:^{
         YouModShowVideoQualitySheet(player, presenter, sender);
     }]];
-    [items addObject:[YouModMenuItem itemWithTitle:@"Download audio" subtitle:@"Choose format" handler:^{
+    [items addObject:[YouModMenuItem itemWithTitle:@"Download audio" subtitle:@"Choose format" icon:YouModIconImage(21) handler:^{
         YouModShowAudioSheet(player, presenter, sender);
     }]];
-    [items addObject:[YouModMenuItem itemWithTitle:@"Download captions" subtitle:@"Save subtitles as VTT" handler:^{
+    [items addObject:[YouModMenuItem itemWithTitle:@"Download captions" subtitle:@"Save subtitles as VTT" icon:YouModIconImage(637) handler:^{
         YouModShowCaptionsSheet(player, presenter, sender);
     }]];
-    [items addObject:[YouModMenuItem itemWithTitle:@"Copy diagnostics" subtitle:@"Copy last error log" handler:^{
+    [items addObject:[YouModMenuItem itemWithTitle:@"Copy diagnostics" subtitle:@"Copy last error log" icon:YouModIconImage(636) handler:^{
         YouModCopyDownloadDiagnostics(presenter);
     }]];
-    [items addObject:[YouModMenuItem itemWithTitle:@"Save thumbnail" subtitle:@"Save to Photos" handler:^{
+    [items addObject:[YouModMenuItem itemWithTitle:@"Save thumbnail" subtitle:@"Save to Photos" icon:YouModIconImage(367) handler:^{
         YouModDownloadThumbnail(videoID, presenter);
     }]];
-    [items addObject:[YouModMenuItem itemWithTitle:@"Copy video information" subtitle:@"Copy title and URL" handler:^{
+    [items addObject:[YouModMenuItem itemWithTitle:@"Copy video information" subtitle:@"Copy title and URL" icon:YouModIconImage(250) handler:^{
         YouModCopyVideoInfo(player, presenter);
     }]];
     YouModPresentMenu(@"Download manager", items, presenter, sender);

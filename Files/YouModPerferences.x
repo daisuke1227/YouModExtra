@@ -51,6 +51,29 @@ static NSBundle *YouModBundle() {
 - (void)documentPicker:(UIDocumentPickerViewController *)controller didPickDocumentsAtURLs:(NSArray<NSURL *> *)urls {
     NSURL *selectedFileURL = urls.firstObject;
     if (!selectedFileURL) return;
+
+    // Check if this is a SponsorBlock ID import
+    if (objc_getAssociatedObject(controller, @selector(importSponsorBlockIDFromVC:))) {
+        NSDictionary *importedData = [NSDictionary dictionaryWithContentsOfURL:selectedFileURL];
+        NSString *importedID = importedData[@"SponsorBlockUserID"];
+        if (!importedID.length) {
+            YTAlertView *alertView = [%c(YTAlertView) infoDialog];
+            alertView.title = LOC(@"ERROR");
+            alertView.subtitle = @"No SponsorBlock user ID found in the selected file.";
+            [alertView show];
+            return;
+        }
+        YTAlertView *alertView = [%c(YTAlertView) confirmationDialogWithAction:^{
+            [[NSUserDefaults standardUserDefaults] setObject:importedID forKey:SponsorBlockUserID];
+            [[NSUserDefaults standardUserDefaults] synchronize];
+            [[%c(YTToastResponderEvent) eventWithMessage:@"SponsorBlock user ID restored from file" firstResponder:nil] send];
+        } actionTitle:LOC(@"YES")];
+        alertView.title = @"Replace user ID?";
+        alertView.subtitle = @"This will replace your current SponsorBlock user ID with the one from the file. Your voting history and submissions will transfer. Make sure you trust this file.";
+        [alertView show];
+        return;
+    }
+
     NSDictionary *importedData = [NSDictionary dictionaryWithContentsOfURL:selectedFileURL];
     // Vaild plist check
     if (!importedData || ![importedData isKindOfClass:[NSDictionary class]]) {
@@ -121,6 +144,79 @@ static NSBundle *YouModBundle() {
         picker.popoverPresentationController.sourceView = vc.view;
     }
     [vc presentViewController:picker animated:YES completion:nil];
+}
+
+// Export SponsorBlock user ID to file
+- (void)exportSponsorBlockIDFromVC:(UIViewController *)vc {
+    NSString *userID = [[NSUserDefaults standardUserDefaults] stringForKey:SponsorBlockUserID];
+    if (!userID.length) {
+        YTAlertView *alertView = [%c(YTAlertView) infoDialog];
+        alertView.title = @"No user ID";
+        alertView.subtitle = @"No SponsorBlock user ID has been generated yet. Open a video with SponsorBlock enabled first.";
+        [alertView show];
+        return;
+    }
+
+    NSDictionary *data = @{@"SponsorBlockUserID": userID, @"exportDate": [NSDate date].description};
+    NSString *tempPath = [NSTemporaryDirectory() stringByAppendingPathComponent:@"YouMod_SponsorBlock_ID.plist"];
+    NSURL *fileURL = [NSURL fileURLWithPath:tempPath];
+    [data writeToURL:fileURL atomically:YES];
+
+    UIDocumentPickerViewController *picker = [[UIDocumentPickerViewController alloc] initForExportingURLs:@[fileURL] asCopy:YES];
+    picker.modalPresentationStyle = UIModalPresentationFormSheet;
+    if ([[UIDevice currentDevice] userInterfaceIdiom] == UIUserInterfaceIdiomPad) {
+        picker.popoverPresentationController.sourceView = vc.view;
+    }
+    [vc presentViewController:picker animated:YES completion:nil];
+}
+
+// Copy SponsorBlock user ID to clipboard
+- (void)copySponsorBlockID {
+    NSString *userID = [[NSUserDefaults standardUserDefaults] stringForKey:SponsorBlockUserID];
+    if (!userID.length) {
+        YTAlertView *alertView = [%c(YTAlertView) infoDialog];
+        alertView.title = @"No user ID";
+        alertView.subtitle = @"No SponsorBlock user ID has been generated yet.";
+        [alertView show];
+        return;
+    }
+    UIPasteboard.generalPasteboard.string = userID;
+    [[%c(YTToastResponderEvent) eventWithMessage:@"SponsorBlock user ID copied to clipboard" firstResponder:nil] send];
+}
+
+// Import SponsorBlock user ID from file
+- (void)importSponsorBlockIDFromVC:(UIViewController *)vc {
+    NSArray<UTType *> *types = @[UTTypePropertyList, UTTypeData];
+    UIDocumentPickerViewController *picker = [[UIDocumentPickerViewController alloc] initForOpeningContentTypes:types asCopy:YES];
+    picker.delegate = self;
+    picker.modalPresentationStyle = UIModalPresentationFormSheet;
+    objc_setAssociatedObject(picker, @selector(importSponsorBlockIDFromVC:), @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    if ([[UIDevice currentDevice] userInterfaceIdiom] == UIUserInterfaceIdiomPad) {
+        picker.popoverPresentationController.sourceView = vc.view;
+        picker.popoverPresentationController.sourceRect = CGRectMake(vc.view.bounds.size.width/2, vc.view.bounds.size.height/2, 0, 0);
+        picker.popoverPresentationController.permittedArrowDirections = 0;
+    }
+    [vc presentViewController:picker animated:YES completion:nil];
+}
+
+// Paste SponsorBlock user ID from clipboard
+- (void)pasteSponsorBlockID {
+    NSString *clipboardText = UIPasteboard.generalPasteboard.string;
+    if (!clipboardText.length || clipboardText.length < 10) {
+        YTAlertView *alertView = [%c(YTAlertView) infoDialog];
+        alertView.title = @"Invalid ID";
+        alertView.subtitle = @"No valid SponsorBlock user ID found on the clipboard.";
+        [alertView show];
+        return;
+    }
+    YTAlertView *alertView = [%c(YTAlertView) confirmationDialogWithAction:^{
+        [[NSUserDefaults standardUserDefaults] setObject:clipboardText forKey:SponsorBlockUserID];
+        [[NSUserDefaults standardUserDefaults] synchronize];
+        [[%c(YTToastResponderEvent) eventWithMessage:@"SponsorBlock user ID restored from clipboard" firstResponder:nil] send];
+    } actionTitle:LOC(@"YES")];
+    alertView.title = @"Replace user ID?";
+    alertView.subtitle = @"This will replace your current SponsorBlock user ID. Your voting history and submissions will transfer to the pasted ID. Make sure you trust the source.";
+    [alertView show];
 }
 
 // Reset
