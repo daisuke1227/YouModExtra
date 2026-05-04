@@ -120,7 +120,7 @@ static void YouModApplyDefaultPlaybackSpeed(YTPlayerViewController *player) {
     NSInteger speedIndex = INTFORVAL(DefaultPlaybackRateIndex);
     if (speedIndex == 3) return;
     CGFloat rate = YouModSpeedForDefaultIndex(speedIndex);
-    [self setPlaybackRate:rate];
+    [player setPlaybackRate:rate];
 }
 
 static void YouModApplyAutoQuality(YTPlayerViewController *player) {
