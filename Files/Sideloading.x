@@ -1,6 +1,8 @@
 // All Codes are adapt from YTLite and uYouEnhanced + Some of my research
 #import "Headers.h"
 
+extern void YouModConfigureDownloadButton(_ASDisplayView *view);
+
 // AccessGroupID
 static NSString *accessGroupID() {
     NSDictionary *query = [NSDictionary dictionaryWithObjectsAndKeys:
@@ -55,6 +57,8 @@ static NSString *accessGroupID() {
     if (IS_ENABLED(HideSubButton) && [self.accessibilityIdentifier isEqualToString:@"eml.animated_subscribe_button"]) self.hidden = YES;
     if (IS_ENABLED(HideShoppingButton) && [self.accessibilityIdentifier isEqualToString:@"eml.header_store_button"]) self.hidden = YES;
     if (IS_ENABLED(HideMemberButton) && [self.accessibilityIdentifier isEqualToString:@"id.sponsor_button"]) self.hidden = YES;
+
+    YouModConfigureDownloadButton(self);
 }
 
 %end

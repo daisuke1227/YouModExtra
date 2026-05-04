@@ -1,5 +1,9 @@
 #import "Headers.h"
 
+extern void YouModDownloadSetCurrentPlayer(YTPlayerViewController *player);
+extern void YouModApplyYTLitePlaybackDefaults(YTPlayerViewController *player);
+extern void YouModHandleYTLiteTimeUpdate(YTPlayerViewController *player, YTSingleVideoController *video, YTSingleVideoTime *time);
+
 float playbackRate = 1.0;
 
 /*
@@ -39,8 +43,17 @@ static void YouModAddEndTime(YTPlayerViewController *self, YTSingleVideoControll
 - (void)setClosedCaptionsOrSubtitlesButtonAvailable:(BOOL)arg1 { if (!IS_ENABLED(HideCaptionsButton)) %orig; }
 - (void)setPreviousButtonHidden:(BOOL)arg { IS_ENABLED(HidePrevButton) ? %orig(YES) : %orig; }
 - (void)setNextButtonHidden:(BOOL)arg { IS_ENABLED(HideNextButton) ? %orig(YES) : %orig; }
-// Hide video title in full screen
+
 - (BOOL)titleViewHidden { return IS_ENABLED(HideFullvidTitle) ? YES : %orig; }
+- (void)setOverlayVisible:(BOOL)visible {
+    %orig;
+    if (!IS_ENABLED(PauseOnOverlay)) return;
+    YTPlayerViewController *player = [self valueForKey:@"playerViewController"] ?: [self valueForKey:@"_playerViewController"];
+    if (visible && [player respondsToSelector:@selector(pause)])
+        [player performSelector:@selector(pause)];
+    else if (!visible && [player respondsToSelector:@selector(play)])
+        [player performSelector:@selector(play)];
+}
 %end
 
 %hook YTAutonavEndscreenController
@@ -92,9 +105,10 @@ static void YouModAddEndTime(YTPlayerViewController *self, YTSingleVideoControll
 %end
 
 %hook YTMainAppVideoPlayerOverlayViewController
-// Disable Double Tap To Seek
+
 - (BOOL)allowDoubleTapToSeekGestureRecognizer { return IS_ENABLED(DisablesDoubleTap) ? NO : %orig; }
-// Disable long hold
+- (BOOL)allowTwoFingerDoubleTapGestureRecognizer { return IS_ENABLED(NoTwoFingerSnapToChapter) ? NO : %orig; }
+
 - (BOOL)allowLongPressGestureRecognizerInView:(id)arg { return IS_ENABLED(DisablesLongHold) ? NO : %orig; }
 %end
 
@@ -176,9 +190,9 @@ static void YouModAddEndTime(YTPlayerViewController *self, YTSingleVideoControll
 - (void)showConfirmAlert { IS_ENABLED(HideContentWarning) ? [self confirmAlertDidPressConfirm] : %orig; }
 %end
 
-// Always show seekbar
+
 %hook YTInlinePlayerBarContainerView
-- (void)setPlayerBarAlpha:(CGFloat)alpha { IS_ENABLED(AlwaysShowSeekbar) ? %orig(1.0) : %orig; }
+- (void)setPlayerBarAlpha:(CGFloat)alpha { (IS_ENABLED(AlwaysShowSeekbar) || IS_ENABLED(PersistentProgressBar)) ? %orig(1.0) : %orig; }
 %end
 
 // Portrait Fullscreen
@@ -311,15 +325,17 @@ static void YouModAddEndTime(YTPlayerViewController *self, YTSingleVideoControll
 %hook YTPlayerViewController
 - (void)loadWithPlayerTransition:(id)arg1 playbackConfig:(id)arg2 {
     %orig;
+    YouModDownloadSetCurrentPlayer(self);
+    YouModApplyYTLitePlaybackDefaults(self);
     if (IS_ENABLED(AutoFullScreen)) [self performSelector:@selector(YouModAutoFullscreen) withObject:nil afterDelay:0.75];
-    // if (ytlBool(@"shortsToRegular")) [self performSelector:@selector(shortsToRegular) withObject:nil afterDelay:0.75];
     if (IS_ENABLED(DisablesCaptions)) [self performSelector:@selector(YouModTurnOffCaptions) withObject:nil afterDelay:1.0];
 }
 
 - (void)prepareToLoadWithPlayerTransition:(id)arg1 expectedLayout:(id)arg2 {
     %orig;
+    YouModDownloadSetCurrentPlayer(self);
+    YouModApplyYTLitePlaybackDefaults(self);
     if (IS_ENABLED(AutoFullScreen)) [self performSelector:@selector(YouModAutoFullscreen) withObject:nil afterDelay:0.75];
-    // if (ytlBool(@"shortsToRegular")) [self performSelector:@selector(shortsToRegular) withObject:nil afterDelay:0.75];
     if (IS_ENABLED(DisablesCaptions)) [self performSelector:@selector(YouModTurnOffCaptions) withObject:nil afterDelay:1.0];
 }
 
@@ -347,6 +363,16 @@ static void YouModAddEndTime(YTPlayerViewController *self, YTSingleVideoControll
     YouModAddEndTime(self, video, time);
 }
 */
+
+- (void)singleVideo:(YTSingleVideoController *)video currentVideoTimeDidChange:(YTSingleVideoTime *)time {
+    %orig;
+    YouModHandleYTLiteTimeUpdate(self, video, time);
+}
+
+- (void)potentiallyMutatedSingleVideo:(YTSingleVideoController *)video currentVideoTimeDidChange:(YTSingleVideoTime *)time {
+    %orig;
+    YouModHandleYTLiteTimeUpdate(self, video, time);
+}
 
 - (void)setPlaybackRate:(float)rate {
     playbackRate = rate;

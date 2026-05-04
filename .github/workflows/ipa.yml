@@ -162,7 +162,7 @@ jobs:
           echo "YT_VERSION=$(grep -A 1 '<key>CFBundleVersion</key>' ytextracted/Payload/YouTube.app/Info.plist | grep '<string>' | awk -F'[><]' '{print $3}')" >> $GITHUB_ENV
 
       - name: Install Dependencies
-        run: brew install make ldid swiftlint
+        run: brew install make ldid dpkg swiftlint
 
       - name: Set PATH Environment Variables
         run: |
@@ -197,6 +197,9 @@ jobs:
             git checkout --quiet
             mv *.sdk "$THEOS/sdks"
             
+      - name: Fix Theos od broken pipe issue
+        run: sed -i '' 's/od -c "$i" | head/od -c "$i" 2>\/dev\/null | head/g' $THEOS/bin/convert_xml_plist.sh || true
+
       - name: Clone headers
         run: |
           if [ ! -d "$THEOS/include/YouTubeHeader" ]; then
@@ -230,6 +233,22 @@ jobs:
         uses: actions/checkout@v6
         with:
           path: YouMod
+
+      - name: Cache FFmpegKit
+        id: cache-ffmpegkit
+        uses: actions/cache@v5
+        with:
+          path: YouMod/Vendor/FFmpegKit/Frameworks
+          key: FFmpegKit-iOS-v2
+
+      - name: Download FFmpegKit
+        if: steps.cache-ffmpegkit.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p YouMod/Vendor/FFmpegKit
+          cd YouMod/Vendor/FFmpegKit
+          wget -q -O ffmpegkit-frameworks.zip https://github.com/daisuke1227/YouMod/releases/download/ffmpegkit/ffmpegkit-frameworks.zip
+          unzip -o -q ffmpegkit-frameworks.zip
+          rm ffmpegkit-frameworks.zip
 
       - name: Clone Open in YouTube (Safari Extension)
         run: |

@@ -111,29 +111,6 @@ Class YTILikeResponseClass, YTIDislikeResponseClass, YTIRemoveLikeResponseClass;
 }
 %end
 
-/* untested
-// Remove Download button from the menu
-%hook YTDefaultSheetController
-- (void)addAction:(YTActionSheetAction *)action {
-    NSString *identifier = [action valueForKey:@"_accessibilityIdentifier"];
-
-    NSDictionary *actionsToRemove = @{
-        @"7": @(ytlBool(@"removeDownloadMenu")),
-        @"1": @(ytlBool(@"removeWatchLaterMenu")),
-        @"3": @(ytlBool(@"removeSaveToPlaylistMenu")),
-        @"5": @(ytlBool(@"removeShareMenu")),
-        @"12": @(ytlBool(@"removeNotInterestedMenu")),
-        @"31": @(ytlBool(@"removeDontRecommendMenu")),
-        @"58": @(ytlBool(@"removeReportMenu"))
-    };
-
-    if (![actionsToRemove[identifier] boolValue]) {
-        %orig;
-    }
-}
-%end
-*/
-
 // YTSlientVote (https://github.com/PoomSmart/YTSilentVote)
 %group SlientVote
 %hook YTInnerTubeResponseWrapper

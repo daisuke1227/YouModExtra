@@ -1,0 +1,3 @@
+Vendor/FFmpegKit/Frameworks/*.framework/
+Vendor/FFmpegKit/Source/
+Vendor/FFmpegKit/Static/*.a

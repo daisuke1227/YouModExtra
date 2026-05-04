@@ -53,6 +53,17 @@ static NSString *GetCacheSize() { // YTLite - @dayanch96
         } \
         settingItemId:0]
 
+#define RAW_SWITCH(title, description, key) \
+    [YTSettingsSectionItemClass switchItemWithTitle:title \
+        titleDescription:description \
+        accessibilityIdentifier:nil \
+        switchOn:IS_ENABLED(key) \
+        switchBlock:^BOOL (YTSettingsCell *cell, BOOL enabled) { \
+            [[NSUserDefaults standardUserDefaults] setBool:enabled forKey:key]; \
+            return YES; \
+        } \
+        settingItemId:0]
+
 // Settings header
 #define SETTINGS_HEADER \
     [YTSettingsSectionItemClass itemWithTitle:nil \
@@ -98,6 +109,111 @@ static NSString *GetCacheSize() { // YTLite - @dayanch96
     NSBundle *tweakBundle = YouModBundle();
     Class YTSettingsSectionItemClass = %c(YTSettingsSectionItem);
     YTSettingsViewController *settingsViewController = [self valueForKey:@"_settingsViewControllerDelegate"];
+    NSArray *holdSpeedLabels = @[@"Disabled", @"Default", @"0.25x", @"0.5x", @"0.75x", @"1.0x", @"1.25x", @"1.5x", @"1.75x", @"2.0x", @"3.0x", @"4.0x", @"5.0x"];
+    NSArray *defaultSpeedLabels = @[@"0.25x", @"0.5x", @"0.75x", @"1.0x", @"1.25x", @"1.5x", @"1.75x", @"2.0x", @"3.0x", @"4.0x", @"5.0x"];
+    NSArray *qualityLabels = @[@"Default", @"Best", @"2160p60", @"2160p", @"1440p60", @"1440p", @"1080p60", @"1080p", @"720p60", @"720p", @"480p", @"360p"];
+    NSArray *sponsorBlockActions = @[@"Disable", @"Auto-skip", @"Ask", @"Display only", @"Skip to segment"];
+    NSArray *sponsorBlockColors = @[@"Default", @"Red", @"Orange", @"Yellow", @"Green", @"Cyan", @"Blue", @"Purple", @"Gray"];
+    NSArray *sponsorBlockCategories = @[
+        @{@"id": @"sponsor", @"title": @"Sponsor", @"description": @"Paid promotion, sponsor reads, and paid product/service mentions.", @"defaultAction": @1},
+        @{@"id": @"selfpromo", @"title": @"Self-promotion", @"description": @"Unpaid promotion of the creator's own products, channels, or services.", @"defaultAction": @1},
+        @{@"id": @"interaction", @"title": @"Interaction reminders", @"description": @"Like, subscribe, comment, or platform interaction reminders.", @"defaultAction": @1},
+        @{@"id": @"intro", @"title": @"Intro", @"description": @"Repeated intermission or intro animation sections.", @"defaultAction": @1},
+        @{@"id": @"outro", @"title": @"Endcards/Credits", @"description": @"Outro, credits, or endcard sections.", @"defaultAction": @1},
+        @{@"id": @"preview", @"title": @"Preview/Recap", @"description": @"Preview, recap, or coming-up clips repeated elsewhere.", @"defaultAction": @1},
+        @{@"id": @"music_offtopic", @"title": @"Music off-topic", @"description": @"Non-music sections in music-focused videos.", @"defaultAction": @1},
+        @{@"id": @"filler", @"title": @"Filler/Jokes", @"description": @"Tangents or filler scenes not needed for the main content.", @"defaultAction": @1},
+        @{@"id": @"poi_highlight", @"title": @"Highlight", @"description": @"Jump-to point or key highlight submitted by the community.", @"defaultAction": @3},
+    ];
+    YTSettingsSectionItem *(^pickerItem)(NSString *, NSString *, NSArray *, NSString *) = ^YTSettingsSectionItem *(NSString *title, NSString *navTitle, NSArray *labels, NSString *key) {
+        return [YTSettingsSectionItemClass itemWithTitle:title
+            accessibilityIdentifier:nil
+            detailTextBlock:^NSString *() {
+                NSInteger index = INTFORVAL(key);
+                if (index < 0 || index >= (NSInteger)labels.count) index = 0;
+                return labels[index];
+            }
+            selectBlock:^BOOL (YTSettingsCell *cell, NSUInteger arg1) {
+                NSMutableArray <YTSettingsSectionItem *> *rows = [NSMutableArray array];
+                for (NSUInteger i = 0; i < labels.count; i++) {
+                    NSUInteger selectedIndex = i;
+                    [rows addObject:[YTSettingsSectionItemClass checkmarkItemWithTitle:labels[i] titleDescription:nil selectBlock:^BOOL (YTSettingsCell *cell, NSUInteger arg1) {
+                        [[NSUserDefaults standardUserDefaults] setInteger:selectedIndex forKey:key];
+                        [[NSUserDefaults standardUserDefaults] synchronize];
+                        [settingsViewController reloadData];
+                        return YES;
+                    }]];
+                }
+                NSInteger selected = INTFORVAL(key);
+                if (selected < 0 || selected >= (NSInteger)labels.count) selected = 0;
+                YTSettingsPickerViewController *picker = [[%c(YTSettingsPickerViewController) alloc] initWithNavTitle:navTitle pickerSectionTitle:nil rows:rows selectedItemIndex:selected parentResponder:[self parentResponder]];
+                [settingsViewController pushViewController:picker];
+                return YES;
+            }];
+    };
+    NSString *(^sponsorBlockActionKey)(NSString *) = ^NSString *(NSString *category) {
+        return [NSString stringWithFormat:@"YouModSponsorBlockAction_%@", category];
+    };
+    NSString *(^sponsorBlockColorKey)(NSString *) = ^NSString *(NSString *category) {
+        return [NSString stringWithFormat:@"YouModSponsorBlockColor_%@", category];
+    };
+    YTSettingsSectionItem *(^sponsorBlockActionItem)(NSDictionary *) = ^YTSettingsSectionItem *(NSDictionary *category) {
+        NSString *key = sponsorBlockActionKey(category[@"id"]);
+        return [YTSettingsSectionItemClass itemWithTitle:category[@"title"]
+            titleDescription:category[@"description"]
+            accessibilityIdentifier:nil
+            detailTextBlock:^NSString *() {
+                NSInteger index = [[NSUserDefaults standardUserDefaults] objectForKey:key] ? INTFORVAL(key) : [category[@"defaultAction"] integerValue];
+                if (index < 0 || index >= (NSInteger)sponsorBlockActions.count) index = 0;
+                return sponsorBlockActions[index];
+            }
+            selectBlock:^BOOL (YTSettingsCell *cell, NSUInteger arg1) {
+                NSMutableArray <YTSettingsSectionItem *> *rows = [NSMutableArray array];
+                for (NSUInteger i = 0; i < sponsorBlockActions.count; i++) {
+                    if (i == 4 && ![category[@"id"] isEqualToString:@"poi_highlight"]) continue;
+                    NSUInteger selectedIndex = i;
+                    [rows addObject:[YTSettingsSectionItemClass checkmarkItemWithTitle:sponsorBlockActions[i] titleDescription:nil selectBlock:^BOOL (YTSettingsCell *cell, NSUInteger arg1) {
+                        [[NSUserDefaults standardUserDefaults] setInteger:selectedIndex forKey:key];
+                        [[NSUserDefaults standardUserDefaults] synchronize];
+                        [settingsViewController reloadData];
+                        return YES;
+                    }]];
+                }
+                NSInteger selected = [[NSUserDefaults standardUserDefaults] objectForKey:key] ? INTFORVAL(key) : [category[@"defaultAction"] integerValue];
+                YTSettingsPickerViewController *picker = [[%c(YTSettingsPickerViewController) alloc] initWithNavTitle:category[@"title"] pickerSectionTitle:nil rows:rows selectedItemIndex:selected parentResponder:[self parentResponder]];
+                [settingsViewController pushViewController:picker];
+                return YES;
+            }];
+    };
+    YTSettingsSectionItem *(^sponsorBlockColorItem)(NSDictionary *) = ^YTSettingsSectionItem *(NSDictionary *category) {
+        NSString *key = sponsorBlockColorKey(category[@"id"]);
+        NSString *title = [NSString stringWithFormat:@"%@ color", category[@"title"]];
+        return [YTSettingsSectionItemClass itemWithTitle:title
+            titleDescription:nil
+            accessibilityIdentifier:nil
+            detailTextBlock:^NSString *() {
+                NSInteger index = INTFORVAL(key);
+                if (index < 0 || index >= (NSInteger)sponsorBlockColors.count) index = 0;
+                return sponsorBlockColors[index];
+            }
+            selectBlock:^BOOL (YTSettingsCell *cell, NSUInteger arg1) {
+                NSMutableArray <YTSettingsSectionItem *> *rows = [NSMutableArray array];
+                for (NSUInteger i = 0; i < sponsorBlockColors.count; i++) {
+                    NSUInteger selectedIndex = i;
+                    [rows addObject:[YTSettingsSectionItemClass checkmarkItemWithTitle:sponsorBlockColors[i] titleDescription:nil selectBlock:^BOOL (YTSettingsCell *cell, NSUInteger arg1) {
+                        [[NSUserDefaults standardUserDefaults] setInteger:selectedIndex forKey:key];
+                        [[NSUserDefaults standardUserDefaults] synchronize];
+                        [settingsViewController reloadData];
+                        return YES;
+                    }]];
+                }
+                NSInteger selected = INTFORVAL(key);
+                if (selected < 0 || selected >= (NSInteger)sponsorBlockColors.count) selected = 0;
+                YTSettingsPickerViewController *picker = [[%c(YTSettingsPickerViewController) alloc] initWithNavTitle:title pickerSectionTitle:nil rows:rows selectedItemIndex:selected parentResponder:[self parentResponder]];
+                [settingsViewController pushViewController:picker];
+                return YES;
+            }];
+    };
 
     // Tweak Version (at the top)
     // Thanks to the original codes from YTweaks by fosterbarnes - https://github.com/fosterbarnes/YTweaks/blob/e921591a89b87256a2b37c4788bd99282f70d9c2/Settings.x
@@ -176,6 +292,24 @@ static NSString *GetCacheSize() { // YTLite - @dayanch96
             return NO;
         }];
     [sectionItems addObject:settings];
+
+    // Section 1
+    // Downloading
+    YTSettingsSectionItem *downloadinggroup = [YTSettingsSectionItemClass itemWithTitle:LOC(@"DOWNLOADING") accessibilityIdentifier:nil detailTextBlock:nil selectBlock:^BOOL (YTSettingsCell *cell, NSUInteger arg1) {
+        NSArray <YTSettingsSectionItem *> *rows = @[
+            SETTINGS_HEADER,
+            BASIC_SWITCH(LOC(@"DOWNLOAD_MANAGER"), LOC(@"DOWNLOAD_MANAGER_DESC"), DownloadManager),
+            BASIC_SWITCH(LOC(@"DOWNLOAD_SAVE_PHOTOS"), LOC(@"DOWNLOAD_SAVE_PHOTOS_DESC"), DownloadSaveToPhotos),
+            RAW_SWITCH(@"Prefer DRC audio", @"Use YouTube's dynamic-range-compressed audio track when direct streams expose one.", DownloadPreferDRCAudio),
+        ];
+        YTSettingsPickerViewController *picker = [[%c(YTSettingsPickerViewController) alloc] initWithNavTitle:LOC(@"DOWNLOADING") pickerSectionTitle:nil rows:rows selectedItemIndex:0 parentResponder:[self parentResponder]];
+        [settingsViewController pushViewController:picker];
+        return YES;
+    }];
+    YTIIcon *downloadIcon = [%c(YTIIcon) new];
+    downloadIcon.iconType = 105;
+    downloadinggroup.settingIcon = downloadIcon;
+    [sectionItems addObject:downloadinggroup];
 
     // Section 1
     // Appearance
@@ -373,9 +507,24 @@ static NSString *GetCacheSize() { // YTLite - @dayanch96
             BASIC_SWITCH(LOC(@"PORTRAIT_FULLSCREEN"), LOC(@"PORTRAIT_FULLSCREEN_DESC"), PortFull),
             BASIC_SWITCH(LOC(@"OLD_QUALITY_PICKER"), LOC(@"OLD_QUALITY_PICKER_DESC"), OldQualityPicker),
             BASIC_SWITCH(LOC(@"EXTRA_SPEED"), LOC(@"EXTRA_SPEED_DESC"), ExtraSpeed),
+            pickerItem(@"Hold to speed", @"Hold to speed", holdSpeedLabels, HoldToSpeedIndex),
+            pickerItem(@"Default playback speed", @"Default playback speed", defaultSpeedLabels, DefaultPlaybackRateIndex),
+            pickerItem(@"Quality on Wi-Fi", @"Select quality", qualityLabels, AutoQualityWiFiIndex),
+            pickerItem(@"Quality on cellular", @"Select quality", qualityLabels, AutoQualityCellularIndex),
             BASIC_SWITCH(LOC(@"DISABLE_HINTS"), LOC(@"DISABLE_HINTS_DESC"), DisableHints),
             BASIC_SWITCH(LOC(@"FORCE_MINIPLAYER"), LOC(@"FORCE_MINIPLAYER_DESC"), ForceMiniPlayer),
             BASIC_SWITCH(LOC(@"FORCE_SEEKBAR"), LOC(@"FORCE_SEEKBAR_DESC"), AlwaysShowSeekbar),
+            RAW_SWITCH(@"Persistent progress bar", @"Keep the player progress bar visible.", PersistentProgressBar),
+            RAW_SWITCH(@"Stock volume HUD", @"Use the iOS system volume HUD in fullscreen.", StockVolumeHUD),
+            RAW_SWITCH(@"Red progress bar", @"Force the classic red playback progress bar.", RedProgressBar),
+            RAW_SWITCH(@"Hide HUD messages", @"Suppress YouTube overlay HUD messages.", NoHUDMessages),
+            RAW_SWITCH(@"Pause on overlay", @"Pause playback when the player overlay is visible.", PauseOnOverlay),
+            RAW_SWITCH(@"Do not snap to chapters", @"Disable snap-to-chapter on the scrubber.", DontSnapToChapter),
+            RAW_SWITCH(@"No two-finger chapter seek", @"Disable two-finger double-tap chapter seeking.", NoTwoFingerSnapToChapter),
+            RAW_SWITCH(@"No free zoom", @"Disable YouTube's free zoom player gesture.", NoFreeZoom),
+            RAW_SWITCH(@"Video end time", @"Show the estimated end time beside the duration.", VideoEndTime),
+            RAW_SWITCH(@"24-hour end time", @"Use 24-hour time for the estimated end time.", Use24HourTime),
+            RAW_SWITCH(@"Copy timestamp on pause", @"Copy the current timestamped link when pause is pressed.", CopyWithTimestamp),
             BASIC_SWITCH(LOC(@"HIDE_LIKE_BUTTON"), LOC(@"HIDE_LIKE_BUTTON_DESC"), HideLikeButton),
             BASIC_SWITCH(LOC(@"HIDE_DISLIKE_BUTTON"), LOC(@"HIDE_DISLIKE_BUTTON_DESC"), HideDisLikeButton),
             BASIC_SWITCH(LOC(@"HIDE_SHARE_BUTTON"), LOC(@"HIDE_SHARE_BUTTON_DESC"), HideShareButton),
@@ -398,12 +547,28 @@ static NSString *GetCacheSize() { // YTLite - @dayanch96
     YTSettingsSectionItem *shortsgroup = [YTSettingsSectionItemClass itemWithTitle:LOC(@"SHORTS") accessibilityIdentifier:nil detailTextBlock:nil selectBlock:^BOOL (YTSettingsCell *cell, NSUInteger arg1) {
         NSArray <YTSettingsSectionItem *> *rows = @[
             SETTINGS_HEADER,
+            RAW_SWITCH(@"Shorts only mode", @"Open into Shorts and hide the tab bar while active.", ShortsOnlyMode),
+            RAW_SWITCH(@"Auto-skip Shorts", @"Advance to the next Short when the current Short ends.", AutoSkipShorts),
+            RAW_SWITCH(@"Open Shorts as videos", @"Open Shorts in the regular watch player.", ShortsToRegular),
+            RAW_SWITCH(@"Disable Shorts resume", @"Stop YouTube from automatically resuming Shorts on launch.", ResumeShorts),
+            RAW_SWITCH(@"Pinch fullscreen Shorts", @"Pinch in Shorts to hide or restore the overlay.", PinchToFullscreenShorts),
+            RAW_SWITCH(@"Hide Shorts logo", @"Hide the Shorts header logo.", HideShortsLogo),
+            RAW_SWITCH(@"Hide Shorts search", @"Hide the Shorts search button.", HideShortsSearchButton),
+            RAW_SWITCH(@"Hide Shorts camera", @"Hide the Shorts camera button.", HideShortsCameraButton),
+            RAW_SWITCH(@"Hide Shorts more", @"Hide the Shorts more button.", HideShortsMoreButton),
             BASIC_SWITCH(LOC(@"HIDE_SHORTS_LIKE_BUTTON"), LOC(@"HIDE_SHORTS_LIKE_BUTTON_DESC"), HideShortsLikeButton),
             BASIC_SWITCH(LOC(@"HIDE_SHORTS_DISLIKE_BUTTON"), LOC(@"HIDE_SHORTS_DISLIKE_BUTTON_DESC"), HideShortsDisLikeButton),
             BASIC_SWITCH(LOC(@"HIDE_SHORTS_COMMENT_BUTTON"), LOC(@"HIDE_SHORTS_COMMENT_BUTTON_DESC"), HideShortsCommentButton),
             BASIC_SWITCH(LOC(@"HIDE_SHORTS_SHARE_BUTTON"), LOC(@"HIDE_SHORTS_SHARE_BUTTON_DESC"), HideShortsShareButton),
             BASIC_SWITCH(LOC(@"HIDE_SHORTS_REMIX_BUTTON"), LOC(@"HIDE_SHORTS_REMIX_BUTTON_DESC"), HideShortsRemixButton),
+            RAW_SWITCH(@"Hide Shorts avatar", @"Hide the Shorts channel avatar.", HideShortsAvatar),
             BASIC_SWITCH(LOC(@"HIDE_METADATA_BUTTON"), LOC(@"HIDE_METADATA_BUTTON_DESC"), HideShortsMetaButton),
+            RAW_SWITCH(@"Hide Shorts channel name", @"Hide the Shorts channel name.", HideShortsChannelName),
+            RAW_SWITCH(@"Hide Shorts description", @"Hide Shorts titles and descriptions.", HideShortsDescription),
+            RAW_SWITCH(@"Hide Shorts audio track", @"Hide Shorts sound metadata.", HideShortsAudioTrack),
+            RAW_SWITCH(@"Hide Shorts promo cards", @"Hide Shorts action and promo cards.", HideShortsPromoCards),
+            RAW_SWITCH(@"Hide Shorts thanks", @"Hide Shorts thanks badges.", HideShortsThanks),
+            RAW_SWITCH(@"Hide Shorts source", @"Hide Shorts source links.", HideShortsSource),
             BASIC_SWITCH(LOC(@"HIDE_SHORTS_PRODUCT"), LOC(@"HIDE_SHORTS_PRODUCT_DESC"), HideShortsProducts),
             BASIC_SWITCH(LOC(@"HIDE_SHORTS_RECBAR"), LOC(@"HIDE_SHORTS_RECBAR_DESC"), HideShortsRecbar),
             BASIC_SWITCH(LOC(@"HIDE_SHORTS_COMMIT"), LOC(@"HIDE_SHORTS_COMMIT_DESC"), HideShortsCommit),
@@ -466,6 +631,9 @@ static NSString *GetCacheSize() { // YTLite - @dayanch96
             BASIC_SWITCH(LOC(@"HIDE_SHORTS_TAB"), LOC(@"HIDE_SHORTS_TAB_DESC"), HideShortsTab),
             BASIC_SWITCH(LOC(@"HIDE_CREATE_BUTTON"), LOC(@"HIDE_CREATE_BUTTON_DESC"), HideCreateButton),
             BASIC_SWITCH(LOC(@"HIDE_SUBSCRIPT_TAB"), LOC(@"HIDE_SUBSCRIPT_TAB_DESC"), HideSubscriptTab),
+            RAW_SWITCH(@"Hide Library tab", @"Remove the Library/You tab from the tab bar.", HideLibraryTab),
+            RAW_SWITCH(@"Restore Explore tab", @"Replace Shorts with the old Explore tab.", RestoreExploreTab),
+            RAW_SWITCH(@"Add Explore tab", @"Add Explore beside the existing tabs.", AddExploreTab),
         ];        
         YTSettingsPickerViewController *picker = [[%c(YTSettingsPickerViewController) alloc] initWithNavTitle:LOC(@"TABBAR") pickerSectionTitle:nil rows:rows selectedItemIndex:0 parentResponder:[self parentResponder]];
         [settingsViewController pushViewController:picker];
@@ -491,6 +659,26 @@ static NSString *GetCacheSize() { // YTLite - @dayanch96
             BASIC_SWITCH(LOC(@"HIDE_STARTUP_ANIMATIONS"), LOC(@"HIDE_STARTUP_ANIMATIONS_DESC"), HideStartupAni),
             BASIC_SWITCH(LOC(@"HIDE_PLAY_IN_NEXT_QUEUE"), LOC(@"HIDE_PLAY_IN_NEXT_QUEUE_DESC"), HidePlayInNextQueue),
             BASIC_SWITCH(LOC(@"HIDE_LIKE_DISLIKE_VOTES"), LOC(@"HIDE_LIKE_DISLIKE_VOTES_DESC"), HideLikeDislikeVotes),
+            RAW_SWITCH(@"Native share sheet", @"Use the iOS share sheet for YouTube share actions.", NativeShare),
+            RAW_SWITCH(@"Description copy button", @"Add copy title/description controls to the description panel.", CopyVideoInfoPanel),
+            RAW_SWITCH(@"Post manager", @"Long-press community posts to copy or save their contents.", PostManager),
+            RAW_SWITCH(@"Save profile photos", @"Long-press profile images to save or copy them.", SaveProfilePhoto),
+            RAW_SWITCH(@"Comment manager", @"Long-press comments to copy or save them.", CommentManager),
+            RAW_SWITCH(@"Fix album artwork", @"Prefer yt4 image hosts for higher quality artwork.", FixAlbums),
+            RAW_SWITCH(@"Remove Download menu", @"Hide YouTube's stock Download menu action.", RemoveDownloadMenu),
+            RAW_SWITCH(@"Remove Watch Later menu", @"Hide Watch Later menu actions.", RemoveWatchLaterMenu),
+            RAW_SWITCH(@"Remove Save to playlist menu", @"Hide Save to playlist menu actions.", RemoveSaveToPlaylistMenu),
+            RAW_SWITCH(@"Remove Share menu", @"Hide Share menu actions.", RemoveShareMenu),
+            RAW_SWITCH(@"Remove Not interested menu", @"Hide Not interested menu actions.", RemoveNotInterestedMenu),
+            RAW_SWITCH(@"Remove Don't recommend menu", @"Hide Don't recommend channel menu actions.", RemoveDontRecommendMenu),
+            RAW_SWITCH(@"Remove Report menu", @"Hide Report menu actions.", RemoveReportMenu),
+            RAW_SWITCH(@"Hide Continue watching", @"Hide continue watching carousels.", HideContinueWatching),
+            RAW_SWITCH(@"Hide related watch-next", @"Hide related watch-next sections under the player.", HideRelatedWatchNexts),
+            RAW_SWITCH(@"Sticky comment sort", @"Keep comment sort chips visible while scrolling.", StickSortComments),
+            RAW_SWITCH(@"Hide comment sort", @"Hide comment sort chips.", HideSortComments),
+            RAW_SWITCH(@"Old playlist minibar", @"Use the older playlist panel minibar behavior.", PlaylistOldMinibar),
+            RAW_SWITCH(@"Disable RTL formatting", @"Force left-to-right paragraph direction.", DisableRTL),
+            RAW_SWITCH(@"Sleep timer", @"Enable a two-finger long press on the player to start a sleep timer.", SleepTimerEnabled),
         ];        
         YTSettingsPickerViewController *picker = [[%c(YTSettingsPickerViewController) alloc] initWithNavTitle:LOC(@"MISCELLANEOUS") pickerSectionTitle:nil rows:rows selectedItemIndex:0 parentResponder:[self parentResponder]];
         [settingsViewController pushViewController:picker];
@@ -502,6 +690,41 @@ static NSString *GetCacheSize() { // YTLite - @dayanch96
     [sectionItems addObject:othergroup];
 
     // Section 8
+    YTSettingsSectionItem *sponsorblockgroup = [YTSettingsSectionItemClass itemWithTitle:@"SponsorBlock" accessibilityIdentifier:nil detailTextBlock:nil selectBlock:^BOOL (YTSettingsCell *cell, NSUInteger arg1) {
+        NSMutableArray <YTSettingsSectionItem *> *rows = [NSMutableArray arrayWithArray:@[
+            SETTINGS_HEADER,
+            RAW_SWITCH(@"Enable", @"Skip community-submitted segments.", SponsorBlockEnabled),
+            RAW_SWITCH(@"Player overlay button", @"Show a SponsorBlock button in the video player.", SponsorBlockPlayerButton),
+            RAW_SWITCH(@"Progress markers", @"Show colored segment markers on the player progress bar.", SponsorBlockSegmentMarkers),
+            RAW_SWITCH(@"Show notifications", @"Show a toast when segments are skipped or detected.", SponsorBlockNotifications),
+            [YTSettingsSectionItemClass itemWithTitle:@"Reset local user ID"
+                titleDescription:@"Creates a new local SponsorBlock voting/submission ID."
+                accessibilityIdentifier:nil
+                detailTextBlock:nil
+                selectBlock:^BOOL (YTSettingsCell *cell, NSUInteger arg1) {
+                    [[NSUserDefaults standardUserDefaults] removeObjectForKey:SponsorBlockUserID];
+                    [[NSUserDefaults standardUserDefaults] synchronize];
+                    [[%c(YTToastResponderEvent) eventWithMessage:@"SponsorBlock user ID reset" firstResponder:[self parentResponder]] send];
+                    return YES;
+                }
+            ],
+        ]];
+
+        for (NSDictionary *category in sponsorBlockCategories) {
+            [rows addObject:sponsorBlockActionItem(category)];
+            [rows addObject:sponsorBlockColorItem(category)];
+        }
+
+        YTSettingsPickerViewController *picker = [[%c(YTSettingsPickerViewController) alloc] initWithNavTitle:@"SponsorBlock" pickerSectionTitle:nil rows:rows selectedItemIndex:0 parentResponder:[self parentResponder]];
+        [settingsViewController pushViewController:picker];
+        return YES;
+    }];
+    YTIIcon *iconSB = [%c(YTIIcon) new];
+    iconSB.iconType = 105;
+    sponsorblockgroup.settingIcon = iconSB;
+    [sectionItems addObject:sponsorblockgroup];
+
+    // Section 9
     // Perferences
     YTSettingsSectionItem *perfgroup = [YTSettingsSectionItemClass itemWithTitle:LOC(@"PERFER_HEADER") accessibilityIdentifier:nil detailTextBlock:nil selectBlock:^BOOL (YTSettingsCell *cell, NSUInteger arg1) {
         NSArray <YTSettingsSectionItem *> *rows = @[
@@ -606,6 +829,16 @@ static NSString *GetCacheSize() { // YTLite - @dayanch96
         HideCastButtonPlayer: @YES,
         BackgroundPlayback: @YES,
         OldQualityPicker: @YES,
+        DownloadManager: @YES,
+        DownloadSaveToPhotos: @YES,
+        DownloadPreferDRCAudio: @NO,
+        HoldToSpeedIndex: @0,
+        DefaultPlaybackRateIndex: @3,
+        AutoQualityWiFiIndex: @0,
+        AutoQualityCellularIndex: @0,
+        SponsorBlockPlayerButton: @YES,
+        SponsorBlockSegmentMarkers: @YES,
+        SponsorBlockNotifications: @YES,
     }];
     %init;
 }

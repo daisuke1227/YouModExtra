@@ -6,8 +6,32 @@ TARGET := iphone:clang:latest:14.0
 include $(THEOS)/makefiles/common.mk
 
 TWEAK_NAME = YouMod
-$(TWEAK_NAME)_FRAMEWORKS = UIKit Foundation
+$(TWEAK_NAME)_FRAMEWORKS = UIKit Foundation Photos AVFoundation Security SystemConfiguration
 $(TWEAK_NAME)_CFLAGS = -fobjc-arc
 $(TWEAK_NAME)_FILES = $(wildcard Files/*.x)
+
+FFMPEGKIT_FRAMEWORK_DIR ?= Vendor/FFmpegKit/Frameworks
+FFMPEGKIT_FRAMEWORKS = ffmpegkit libavcodec libavdevice libavfilter libavformat libavutil libswresample libswscale
+FFMPEGKIT_STATIC_LIB_DIR ?= Vendor/FFmpegKit/Static
+FFMPEGKIT_STATIC_LIBS = libffmpegkit.a libavcodec.a libavdevice.a libavfilter.a libavformat.a libavutil.a libswresample.a libswscale.a
+FFMPEGKIT_STATIC_ARCHIVES = $(addprefix $(FFMPEGKIT_STATIC_LIB_DIR)/,$(FFMPEGKIT_STATIC_LIBS))
+
+ifneq ($(wildcard $(FFMPEGKIT_STATIC_LIB_DIR)/libffmpegkit.a),)
+$(TWEAK_NAME)_FRAMEWORKS += AudioToolbox CoreMedia CoreVideo VideoToolbox
+$(TWEAK_NAME)_LIBRARIES += bz2 iconv z c++
+$(TWEAK_NAME)_LDFLAGS += $(foreach archive,$(FFMPEGKIT_STATIC_ARCHIVES),-Wl,-force_load,$(archive))
+else ifneq ($(wildcard $(FFMPEGKIT_FRAMEWORK_DIR)/ffmpegkit.framework/ffmpegkit),)
+$(TWEAK_NAME)_FRAMEWORKS += AudioToolbox CoreMedia CoreVideo VideoToolbox
+$(TWEAK_NAME)_LIBRARIES += bz2 iconv z c++
+$(TWEAK_NAME)_LDFLAGS += -F$(FFMPEGKIT_FRAMEWORK_DIR)
+$(TWEAK_NAME)_LDFLAGS += -Wl,-rpath,/Library/Frameworks -Wl,-rpath,@loader_path/Frameworks -Wl,-rpath,@executable_path/Frameworks
+$(TWEAK_NAME)_LDFLAGS += $(foreach framework,$(FFMPEGKIT_FRAMEWORKS),-framework $(framework))
+
+after-stage::
+	mkdir -p "$(THEOS_STAGING_DIR)/Library/Frameworks"
+	rsync -a "$(FFMPEGKIT_FRAMEWORK_DIR)/" "$(THEOS_STAGING_DIR)/Library/Frameworks/"
+	mkdir -p "$(THEOS_STAGING_DIR)/Library/Application Support/YouMod.bundle/Frameworks"
+	rsync -a "$(FFMPEGKIT_FRAMEWORK_DIR)/" "$(THEOS_STAGING_DIR)/Library/Application Support/YouMod.bundle/Frameworks/"
+endif
 
 include $(THEOS_MAKE_PATH)/tweak.mk
