@@ -1141,7 +1141,7 @@ static NSString *YouModExtractShareID(GPBUnknownFieldSet *fields, int fieldNumbe
 %end
 
 %ctor {
-    if (IS_ENABLED(ShortsOnlyMode) || IS_ENABLED(HideShortsTab) {
+    if (IS_ENABLED(ShortsOnlyMode) || IS_ENABLED(HideShortsTab)) {
         [[NSUserDefaults standardUserDefaults] setBool:NO forKey:HideShortsTab];
     }
 }
