@@ -24,13 +24,15 @@
         if ([pID isEqualToString:@"FElibrary"] && IS_ENABLED(HideLibraryTab)) {
             [indicesToRemove addIndex:i];
         }
+        /*
         if ([pID isEqualToString:@"FEshorts"] && IS_ENABLED(RestoreExploreTab)) {
             [indicesToRemove addIndex:i];
         }
+        */
     }
     // Remove them all at once so the layout doesn't break
     [items removeObjectsAtIndexes:indicesToRemove];
-
+    /* Disabled - YouTube fully removed this tab from server-side
     NSUInteger exploreIndex = [items indexOfObjectPassingTest:^BOOL(YTIPivotBarSupportedRenderers *renderers, NSUInteger idx, BOOL *stop) {
         return [[[renderers pivotBarItemRenderer] pivotIdentifier] isEqualToString:[%c(YTIBrowseRequest) browseIDForExploreTab]];
     }];
@@ -39,6 +41,7 @@
         NSUInteger insertIndex = MIN((NSUInteger)1, items.count);
         [items insertObject:exploreTab atIndex:insertIndex];
     }
+    */
     %orig(renderer);
 }
 %end
@@ -72,7 +75,7 @@
     [[NSUserDefaults standardUserDefaults] setBool:hidden forKey:HideLibraryTab];
     [[NSUserDefaults standardUserDefaults] synchronize];
     if ([%c(YTToastResponderEvent) respondsToSelector:@selector(eventWithMessage:firstResponder:)]) {
-        [[%c(YTToastResponderEvent) eventWithMessage:hidden ? @"Library tab hidden" : @"Library tab shown" firstResponder:self] send];
+        [[%c(YTToastResponderEvent) eventWithMessage:hidden ? @"Library tab hidden" : @"Library tab shown" firstResponder:self] send]; // use self - why it crashes?
     }
 }
 %end
