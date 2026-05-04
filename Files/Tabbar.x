@@ -21,10 +21,10 @@
         if ([pID isEqualToString:@"FEsubscriptions"] && IS_ENABLED(HideSubscriptTab)) {
             [indicesToRemove addIndex:i];
         }
+        /*
         if ([pID isEqualToString:@"FElibrary"] && IS_ENABLED(HideLibraryTab)) {
             [indicesToRemove addIndex:i];
         }
-        /*
         if ([pID isEqualToString:@"FEshorts"] && IS_ENABLED(RestoreExploreTab)) {
             [indicesToRemove addIndex:i];
         }
