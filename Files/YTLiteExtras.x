@@ -639,7 +639,7 @@ static void YouModSponsorBlockHandleTime(YTPlayerViewController *player, NSTimeI
         }
 
         if (end <= start) continue;
-        if (currentTime >= start && currentTime < end - 0.25) {
+        if (currentTime >= start - 0.1 && currentTime < end - 0.1) {
             NSString *skipKey = [NSString stringWithFormat:@"%@:%@:%.3f", videoID ?: @"", segment[@"uuid"] ?: category, end];
             NSString *lastSkipKey = objc_getAssociatedObject(player, @selector(YouModSponsorBlockFetchIfNeeded));
             if ([skipKey isEqualToString:lastSkipKey]) return;
@@ -1295,6 +1295,20 @@ static void YouModManageHoldToSpeed(UILongPressGestureRecognizer *gesture, YTMai
         YouModShowToast(@"Sleep timer off", player);
     });
     [sheet presentFromViewController:YouModTopViewController() animated:YES completion:nil];
+}
+%end
+
+%hook YTPlayerViewController
+- (void)seekToTime:(double)time {
+    %orig;
+    if (IS_ENABLED(SponsorBlockEnabled))
+        YouModSponsorBlockHandleTime(self, time);
+}
+
+- (void)seekToTime:(double)time toleranceBefore:(double)before toleranceAfter:(double)after {
+    %orig;
+    if (IS_ENABLED(SponsorBlockEnabled))
+        YouModSponsorBlockHandleTime(self, time);
 }
 %end
 
