@@ -60,6 +60,9 @@
         [self.navigationButton setTitle:@"" forState:UIControlStateNormal];
         [self.navigationButton setSizeWithPaddingAndInsets:NO];
     }
+}
+%end
+
 /*
     if ([[self.renderer pivotIdentifier] isEqualToString:@"FEwhat_to_watch"] && !objc_getAssociatedObject(self, @selector(YouModToggleLibraryTab:))) {
         UILongPressGestureRecognizer *longPress = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(YouModToggleLibraryTab:)];
@@ -80,8 +83,6 @@
     }
 }
 */
-%end
-
 
 BOOL isTabSelected = NO;
 %hook YTPivotBarViewController
