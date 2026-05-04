@@ -120,7 +120,7 @@ static void YouModApplyDefaultPlaybackSpeed(YTPlayerViewController *player) {
     NSInteger speedIndex = INTFORVAL(DefaultPlaybackRateIndex);
     if (speedIndex == 3) return;
     CGFloat rate = YouModSpeedForDefaultIndex(speedIndex);
-    sendRate(player, setter, rate);
+    [self setPlaybackRate:rate];
 }
 
 static void YouModApplyAutoQuality(YTPlayerViewController *player) {
@@ -400,17 +400,20 @@ void YouModHandleYTLiteTimeUpdate(YTPlayerViewController *player, YTSingleVideoC
 %end
 
 // Untested
+/*
 %hook YTModularPlayerBarController
 - (void)setEnableSnapToChapter:(BOOL)arg1 { IS_ENABLED(DontSnapToChapter) ? %orig(NO) : %orig; }
 %end
+*/
 
 %hook YTMainAppVideoPlayerOverlayViewController
 - (void)didPressPause:(id)sender {
     %orig;
     if (!IS_ENABLED(CopyWithTimestamp)) return;
     CGFloat mediaTimeIn = self.mediaTime;
-    if (videoID.length)
-        UIPasteboard.generalPasteboard.string = [NSString stringWithFormat:@"https://www.youtube.com/watch?v=%@&t=%lds", videoID, (long)mediaTimeIn];
+    NSString vidID = self.videoID;
+    if (vidID.length)
+        UIPasteboard.generalPasteboard.string = [NSString stringWithFormat:@"https://www.youtube.com/watch?v=%@&t=%lds", vidID, (long)mediaTimeIn];
 }
 %end
 

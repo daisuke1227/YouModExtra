@@ -60,6 +60,7 @@
         [self.navigationButton setTitle:@"" forState:UIControlStateNormal];
         [self.navigationButton setSizeWithPaddingAndInsets:NO];
     }
+/*
     if ([[self.renderer pivotIdentifier] isEqualToString:@"FEwhat_to_watch"] && !objc_getAssociatedObject(self, @selector(YouModToggleLibraryTab:))) {
         UILongPressGestureRecognizer *longPress = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(YouModToggleLibraryTab:)];
         longPress.minimumPressDuration = 0.3;
@@ -78,6 +79,7 @@
         [[%c(YTToastResponderEvent) eventWithMessage:hidden ? @"Library tab hidden" : @"Library tab shown" firstResponder:self] send]; // use self - why it crashes?
     }
 }
+*/
 %end
 
 

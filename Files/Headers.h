@@ -177,7 +177,7 @@
 #define HideShortsTab @"YouModHideShortsTab"
 #define HideCreateButton @"YouModHideCreateButton"
 #define HideSubscriptTab @"YouModHideSubscriptionsTab"
-#define HideLibraryTab @"YouModHideLibraryTab"
+// #define HideLibraryTab @"YouModHideLibraryTab"
 
 #define BackgroundPlayback @"YouModEnablesBackgroundPlayback"
 #define DisablesShortsPiP @"YouModTrytoDisablesShortsPiP"
@@ -331,7 +331,7 @@ typedef NS_ENUM(NSUInteger, GestureSection) {
 
 @interface YTMainAppVideoPlayerOverlayViewController (YouMod)
 @property (nonatomic, strong, readwrite) YTPlayerBarController *playerBarController;
-@property (nonatomic, strong, readonly) NSString *videoID;
+- (NSString *)videoID;
 - (CGFloat)mediaTime;
 @end
 
@@ -344,4 +344,13 @@ typedef NS_ENUM(NSUInteger, GestureSection) {
 
 @interface YTSingleVideoController (YouMod)
 @property (nonatomic, assign, readonly) CGFloat totalMediaTime;
+@end
+
+@interface YTReelContentView : UIView
+@end
+
+@interface YTImageZoomNode : NSObject
+@end
+
+@interface YTEngagementPanelView : UIView
 @end

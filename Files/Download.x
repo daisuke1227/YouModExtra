@@ -640,8 +640,8 @@ static NSString *YouModURLStringWithCPN(NSString *urlString) {
     if (urlString.length == 0) return urlString;
     urlString = YouModURLStringBypassingThrottle(urlString);
     if ([urlString containsString:@"cpn="]) return urlString;
-    NSString *cpn = ((id (*)(Class, SEL))objc_msgSend)(ytDataUtils, @selector(generateClientSideNonce));
     Class ytDataUtils = NSClassFromString(@"YTDataUtils");
+    NSString *cpn = ((id (*)(Class, SEL))objc_msgSend)(ytDataUtils, @selector(generateClientSideNonce));
     if (![cpn isKindOfClass:NSString.class] || cpn.length == 0)
         cpn = YouModGenerateCPN();
     NSString *separator = [urlString containsString:@"?"] ? @"&" : @"?";
