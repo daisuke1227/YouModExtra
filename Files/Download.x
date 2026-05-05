@@ -2206,7 +2206,7 @@ static void YouModShowVideoQualitySheet(YTPlayerViewController *player, UIViewCo
     for (YouModMediaFormat *format in videoFormats) {
         NSString *rowTitle = format.qualityLabel.length ? format.qualityLabel : @"Video";
         NSString *subtitle = YouModFormatSubtitle(format);
-        [items addObject:[YouModMenuItem itemWithTitle:rowTitle subtitle:subtitle icon:YouModIconImage(57) handler:^{
+        [items addObject:[YouModMenuItem itemWithTitle:rowTitle subtitle:subtitle icon:YouModIconImage(658) handler:^{
             [[YouModDownloadCoordinator sharedCoordinator] startVideoDownloadWithVideoFormat:format audioFormat:audioFormat fileName:title videoID:videoID presenter:presenter];
         }]];
     }
