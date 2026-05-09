@@ -25,16 +25,12 @@
 - (void)showMessage:(id)message;
 @end 
 
-%hook YTMainAppVideoPlayerOverlayView
-- (void)showMessage:(id)message {
-    if (IS_ENABLED(NoHUDMessages)) return;
-    %orig;
-}
-%end
 
 @interface YTPlayerViewController (YouModYTLiteExtras)
 - (void)play;
 - (void)pause;
+- (float)currentPlaybackRate;
+- (void)setPlaybackRate:(float)rate;
 @end 
 
 @interface NSObject (YouModYTLiteDynamic)
@@ -162,50 +158,13 @@ static NSArray *YouModSpeedValues(void) {
     return @[ @0.25, @0.5, @0.75, @1.0, @1.25, @1.5, @1.75, @2.0, @3.0, @4.0, @5.0];
 }
 
-static NSArray *YouModHoldSpeedValues(void) {
-    return @[ @0.0, @1.0, @0.25, @0.5, @0.75, @1.0, @1.25, @1.5, @1.75, @2.0, @3.0, @4.0, @5.0];
-}
-
 static CGFloat YouModSpeedForDefaultIndex(NSInteger index) {
     NSArray *values = YouModSpeedValues();
     if (index < 0 || index >= (NSInteger)values.count) index = 3;
     return [values[index] floatValue];
 }
 
-static CGFloat YouModSpeedForHoldIndex(NSInteger index) {
-    NSArray *values = YouModHoldSpeedValues();
-    if (index < 0 || index >= (NSInteger)values.count) index = 0;
-    return [values[index] floatValue];
-}
 
-static BOOL YouModNetworkIsCellular(void) {
-    struct sockaddr_in zeroAddress;
-    memset(&zeroAddress, 0, sizeof(zeroAddress));
-    zeroAddress.sin_len = sizeof(zeroAddress);
-    zeroAddress.sin_family = AF_INET;
-
-    SCNetworkReachabilityRef reachability = SCNetworkReachabilityCreateWithAddress(kCFAllocatorDefault, (const struct sockaddr *)&zeroAddress);
-    if (!reachability) return NO;
-
-    SCNetworkReachabilityFlags flags = 0;
-    BOOL ok = SCNetworkReachabilityGetFlags(reachability, &flags);
-    CFRelease(reachability);
-    if (!ok) return NO;
-    return (flags & kSCNetworkReachabilityFlagsIsWWAN) != 0;
-}
-
-static NSString *YouModQualityLabelForIndex(NSInteger index, NSString *bestQualityLabel) {
-    NSArray *qualityLabels = @[ @"Default", bestQualityLabel ?: @"Best", @"2160p60", @"2160p", @"1440p60", @"1440p", @"1080p60", @"1080p", @"720p60", @"720p", @"480p", @"360p"];
-    if (index < 0 || index >= (NSInteger)qualityLabels.count) index = 0;
-    return qualityLabels[index];
-}
-
-static NSInteger YouModQualityNumber(NSString *qualityLabel) {
-    NSRegularExpression *regex = [NSRegularExpression regularExpressionWithPattern: @"(\\d+)p" options:0 error:nil];
-    NSTextCheckingResult *match = [regex firstMatchInString:qualityLabel ?: @"" options:0 range:NSMakeRange(0, qualityLabel.length)];
-    if (!match || match.numberOfRanges < 2) return 0;
-    return [[qualityLabel substringWithRange:[match rangeAtIndex:1]] integerValue];
-}
 
 static void YouModApplyDefaultPlaybackSpeed(YTPlayerViewController *player) {
     NSInteger speedIndex = INTFORVAL(DefaultPlaybackRateIndex);
@@ -218,64 +177,6 @@ static void YouModApplyDefaultPlaybackSpeed(YTPlayerViewController *player) {
         sendRate(overlay, setter, rate);
     else if ([player respondsToSelector:setter])
         sendRate(player, setter, rate);
-}
-
-static void YouModApplyAutoQuality(YTPlayerViewController *player) {
-    NSInteger qualityIndex = YouModNetworkIsCellular() ? INTFORVAL(AutoQualityCellularIndex) : INTFORVAL(AutoQualityWiFiIndex);
-    if (qualityIndex == 0) return;
-
-    id activeVideo = [player respondsToSelector: @selector(activeVideo)] ? [player activeVideo] : nil;
-    NSArray *formats = [activeVideo respondsToSelector: @selector(selectableVideoFormats)] ? [activeVideo selectableVideoFormats] : nil;
-    if (!formats.count) return;
-
-    NSString *bestQualityLabel = nil;
-    NSInteger highestScore = 0;
-    for (MLFormat *format in formats) {
-        if (![format respondsToSelector: @selector(qualityLabel)]) continue;
-        NSInteger resolution = [format respondsToSelector: @selector(singleDimensionResolution)] ? [format singleDimensionResolution] : YouModQualityNumber([format qualityLabel]);
-        NSInteger fps = [format respondsToSelector: @selector(FPS)] ? (NSInteger)[format FPS] : 30;
-        NSInteger score = resolution * 100 + fps;
-        if (score > highestScore) {
-            highestScore = score;
-            bestQualityLabel = [format qualityLabel];
-        }
-    }
-
-    NSString *qualityLabel = YouModQualityLabelForIndex(qualityIndex, bestQualityLabel);
-    if (!qualityLabel.length || [qualityLabel isEqualToString: @"Default"]) return;
-    if ([qualityLabel isEqualToString:bestQualityLabel]) {
-        BOOL exactMatch = NO;
-        for (MLFormat *format in formats) {
-            if ([[format qualityLabel] isEqualToString:qualityLabel]) {
-                exactMatch = YES;
-                break;
-            }
-        }
-        if (!exactMatch) {
-            NSInteger target = YouModQualityNumber(qualityLabel);
-            NSInteger bestDifference = NSIntegerMax;
-            NSString *closest = qualityLabel;
-            for (MLFormat *format in formats) {
-                NSString *candidate = [format qualityLabel];
-                NSInteger candidateQuality = YouModQualityNumber(candidate);
-                if (!candidateQuality) continue;
-                NSInteger difference = labs(candidateQuality - target);
-                if (difference < bestDifference) {
-                    bestDifference = difference;
-                    closest = candidate;
-                }
-            }
-            qualityLabel = closest;
-        }
-    }
-
-    Class constraintClass = NSClassFromString( @"MLQuickMenuVideoQualitySettingFormatConstraint");
-    id constraint = [[constraintClass alloc] initWithVideoQualitySetting:3 formatSelectionReason:2 qualityLabel:qualityLabel];
-    SEL setter = @selector(setVideoFormatConstraint:);
-    if (constraint && [activeVideo respondsToSelector:setter]) {
-        void (*send)(id, SEL, id) = (void *)objc_msgSend;
-        send(activeVideo, setter, constraint);
-    }
 }
 
 static void YouModOpenShortAsRegularVideo(YTPlayerViewController *player) {
@@ -630,11 +531,6 @@ void YouModApplyYTLitePlaybackDefaults(YTPlayerViewController *player) {
         YouModApplyDefaultPlaybackSpeed(player);
         YouModOpenShortAsRegularVideo(player);
     });
-    if (INTFORVAL(AutoQualityWiFiIndex) != 0 || INTFORVAL(AutoQualityCellularIndex) != 0) {
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-            YouModApplyAutoQuality(player);
-        });
-    }
     YouModSponsorBlockFetchIfNeeded(player);
 }
 
@@ -1126,41 +1022,12 @@ static CGRect YouModSponsorBlockTrackFrame(YTInlinePlayerBarContainerView *bar) 
 }
 %end
 
-
-static CGFloat YouModRateBeforeHoldToSpeed = 1.0;
-
-static void YouModAddSleepTimerAction(YTDefaultSheetController *sheet, NSString *title, NSString *iconName, NSString *fallbackIconName, void (^handler)(void)) {
-    UIImage *icon = YouModYTImageNamed(iconName, fallbackIconName);
-    [sheet addAction:[%c(YTActionSheetAction) actionWithTitle:title iconImage:icon style:0 handler:^(__unused YTActionSheetAction *action) {
-        if (handler) handler();
-    }]];
-}
-
-static void YouModManageHoldToSpeed(UILongPressGestureRecognizer *gesture, YTMainAppVideoPlayerOverlayViewController *delegate, YTInlinePlayerScrubUserEducationView *educationView) {
-    NSInteger speedIndex = INTFORVAL(HoldToSpeedIndex);
-    if (speedIndex == 0 || !delegate) return;
-
-    CGFloat speed = YouModSpeedForHoldIndex(speedIndex);
-    UILabel *label = nil;
-    @try {
-        label = [educationView valueForKey: @"_userEducationLabel"];
-    } @catch (NSException *exception) {}
-    if (label) {
-        educationView.labelType = 1;
-        label.text = [NSString stringWithFormat: @"Playback speed: %.2gx", speed];
-    }
-
-    if (gesture.state == UIGestureRecognizerStateBegan) {
-        YouModRateBeforeHoldToSpeed = [delegate respondsToSelector: @selector(currentPlaybackRate)] ? [delegate currentPlaybackRate] : 1.0;
-        [delegate setPlaybackRate:speed];
-        [educationView setVisible:YES];
-    } else if (gesture.state == UIGestureRecognizerStateEnded || gesture.state == UIGestureRecognizerStateCancelled || gesture.state == UIGestureRecognizerStateFailed) {
-        [delegate setPlaybackRate:YouModRateBeforeHoldToSpeed];
-        [educationView setVisible:NO];
-    }
-}
-
 %hook YTMainAppVideoPlayerOverlayView
+- (void)showMessage:(id)message {
+    if (IS_ENABLED(NoHUDMessages)) return;
+    %orig;
+}
+
 - (void)layoutSubviews {
     %orig;
     CGFloat top = self.safeAreaInsets.top + 10.0;
@@ -1234,7 +1101,58 @@ static void YouModManageHoldToSpeed(UILongPressGestureRecognizer *gesture, YTMai
         }
         lockButton.frame = CGRectMake(currentX, top, 32.0, 32.0);
         [self bringSubviewToFront:lockButton];
+        currentX += 40.0;
     }
+
+    // Speed Master Button
+    UIButton *speedButton = objc_getAssociatedObject(self, @selector(YouModSpeedMasterButtonTapped:));
+    if (!IS_ENABLED(EnableSpeedMaster)) {
+        [speedButton removeFromSuperview];
+        objc_setAssociatedObject(self, @selector(YouModSpeedMasterButtonTapped:), nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    } else {
+        if (!speedButton) {
+            speedButton = [UIButton buttonWithType:UIButtonTypeSystem];
+            speedButton.backgroundColor = [[UIColor blackColor] colorWithAlphaComponent:0.55];
+            speedButton.tintColor = UIColor.whiteColor;
+            speedButton.layer.cornerRadius = 16.0;
+            [speedButton setImage:YouModYTImageNamed(@"yt_outline_play_speed_24pt", @"speedometer") forState:UIControlStateNormal];
+            [speedButton addTarget:self action: @selector(YouModSpeedMasterButtonTapped:) forControlEvents:UIControlEventTouchUpInside];
+            [self addSubview:speedButton];
+            objc_setAssociatedObject(self, @selector(YouModSpeedMasterButtonTapped:), speedButton, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        }
+        speedButton.frame = CGRectMake(currentX, top, 32.0, 32.0);
+        [self bringSubviewToFront:speedButton];
+        currentX += 40.0;
+    }
+}
+
+%new
+- (void)YouModSpeedMasterButtonTapped:(UIButton *)sender {
+    YTPlayerViewController *player = (YTPlayerViewController *)(self.delegate.parentViewController ?: YouModSleepTimerPlayer);
+    if (!player) return;
+    
+    float currentSpeed = [player respondsToSelector:@selector(currentPlaybackRate)] ? [player currentPlaybackRate] : 1.0;
+    
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Speed Master" message:[NSString stringWithFormat:@"Current Speed: %.2fx", currentSpeed] preferredStyle:UIAlertControllerStyleActionSheet];
+    
+    NSArray *speeds = @[@0.25, @0.5, @0.75, @1.0, @1.25, @1.5, @1.75, @2.0, @2.5, @3.0];
+    for (NSNumber *speed in speeds) {
+        [alert addAction:[UIAlertAction actionWithTitle:[NSString stringWithFormat:@"%.2fx", [speed floatValue]] style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
+            if ([player respondsToSelector:@selector(setPlaybackRate:)]) {
+                [player setPlaybackRate:[speed floatValue]];
+                YouModShowToast([NSString stringWithFormat:@"Speed set to %.2fx", [speed floatValue]], player);
+            }
+        }]];
+    }
+    
+    [alert addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
+    
+    if (alert.popoverPresentationController) {
+        alert.popoverPresentationController.sourceView = sender;
+        alert.popoverPresentationController.sourceRect = sender.bounds;
+    }
+    
+    [YouModTopViewController() presentViewController:alert animated:YES completion:nil];
 }
 
 %new
@@ -1294,6 +1212,13 @@ static void YouModManageHoldToSpeed(UILongPressGestureRecognizer *gesture, YTMai
     }
 }
 
+static void YouModAddSleepTimerAction(YTDefaultSheetController *sheet, NSString *title, NSString *iconName, NSString *fallbackIconName, void (^handler)(void)) {
+    UIImage *icon = YouModYTImageNamed(iconName, fallbackIconName);
+    [sheet addAction:[%c(YTActionSheetAction) actionWithTitle:title iconImage:icon style:0 handler:^(__unused YTActionSheetAction *action) {
+        if (handler) handler();
+    }]];
+}
+
 %new
 - (void)YouModLockOverlayTapped:(UITapGestureRecognizer *)gesture {
     YouModShowToast(@"Screen is locked. Tap the lock icon to unlock.", self);
@@ -1301,12 +1226,6 @@ static void YouModManageHoldToSpeed(UILongPressGestureRecognizer *gesture, YTMai
 
 - (void)setSeekAnywherePanGestureRecognizer:(id)arg1 {
     %orig;
-    if (INTFORVAL(HoldToSpeedIndex) != 0 && !objc_getAssociatedObject(self, @selector(YouModHoldToSpeed:))) {
-        UILongPressGestureRecognizer *longPress = [[UILongPressGestureRecognizer alloc] initWithTarget:self action: @selector(YouModHoldToSpeed:)];
-        longPress.minimumPressDuration = 0.3;
-        [self addGestureRecognizer:longPress];
-        objc_setAssociatedObject(self, @selector(YouModHoldToSpeed:), @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-    }
     if (IS_ENABLED(SleepTimerEnabled) && !objc_getAssociatedObject(self, @selector(YouModShowSleepTimer:))) {
         UILongPressGestureRecognizer *sleepPress = [[UILongPressGestureRecognizer alloc] initWithTarget:self action: @selector(YouModShowSleepTimer:)];
         sleepPress.numberOfTouchesRequired = 2;
@@ -1320,11 +1239,6 @@ static void YouModManageHoldToSpeed(UILongPressGestureRecognizer *gesture, YTMai
 - (void)YouModSponsorBlockButtonTapped:(UIButton *)sender {
     YTPlayerViewController *player = (YTPlayerViewController *)(self.delegate.parentViewController ?: YouModSponsorBlockCurrentPlayer);
     YouModSponsorBlockPresentSheet(player);
-}
-
-%new
-- (void)YouModHoldToSpeed:(UILongPressGestureRecognizer *)gesture {
-    YouModManageHoldToSpeed(gesture, self.delegate, self.scrubUserEducationView);
 }
 
 %new
@@ -1360,23 +1274,6 @@ static void YouModManageHoldToSpeed(UILongPressGestureRecognizer *gesture, YTMai
         YouModShowToast( @"Sleep timer off", player);
     });
     [sheet presentFromViewController:YouModTopViewController() animated:YES completion:nil];
-}
-%end
-
-%hook YTSpeedmasterController
-- (void)speedmasterDidLongPressWithRecognizer:(UILongPressGestureRecognizer *)gesture {
-    NSInteger speedIndex = INTFORVAL(HoldToSpeedIndex);
-    if (speedIndex == 0) return;
-    if (speedIndex == 1) return %orig;
-    YTMainAppVideoPlayerOverlayViewController *delegate = nil;
-    @try {
-        delegate = [(id)self valueForKey: @"_delegate"];
-    } @catch (NSException *exception) {}
-    YTInlinePlayerScrubUserEducationView *educationView = nil;
-    @try {
-        educationView = [[delegate videoPlayerOverlayView] valueForKey: @"scrubUserEducationView"];
-    } @catch (NSException *exception) {}
-    YouModManageHoldToSpeed(gesture, delegate, educationView);
 }
 %end
 
@@ -1876,74 +1773,76 @@ static NSURL *YouModFixedAlbumURL(NSURL *URL) {
 }
 %end
 
-static NSString *YouModExtractShareID(GPBUnknownFieldSet *fields, int fieldNumber, NSString *format) {
-    GPBUnknownField *field = [fields getField:fieldNumber];
-    if (!field) return nil;
-    if (field.lengthDelimitedList.count != 1) return nil;
-    NSString *identifier = [[NSString alloc] initWithData:field.lengthDelimitedList.firstObject encoding:NSUTF8StringEncoding];
-    return identifier.length ? [NSString stringWithFormat:format, identifier] : nil;
-}
-
-%hook ELMPBShowActionSheetCommand
-- (void)executeWithCommandContext:(id)context handler:(id)handler {
-    if (!IS_ENABLED(NativeShare)) return %orig;
-
-    BOOL hasOnAppear = NO;
-    id onAppear = nil;
-    @try {
-        hasOnAppear = [[(id)self valueForKey: @"hasOnAppear"] boolValue];
-        onAppear = [(id)self valueForKey: @"onAppear"];
-    } @catch (NSException *exception) {}
-    if (!hasOnAppear || !onAppear) return %orig;
-
-    id innertubeDescriptor = [NSClassFromString( @"YTIInnertubeCommandExtensionRoot") performSelector: @selector(innertubeCommand)];
-    if (!innertubeDescriptor || ![onAppear hasExtension:innertubeDescriptor]) return %orig;
-    id innertubeCommand = [onAppear getExtension:innertubeDescriptor];
-
-    id updateDescriptor = [NSClassFromString( @"YTIUpdateShareSheetCommand") performSelector: @selector(updateShareSheetCommand)];
-    if (!updateDescriptor || ![innertubeCommand hasExtension:updateDescriptor]) return %orig;
-    id updateShareSheetCommand = [innertubeCommand getExtension:updateDescriptor];
-
-    BOOL hasSerializedShareEntity = NO;
-    NSString *serializedShareEntity = nil;
-    @try {
-        hasSerializedShareEntity = [[updateShareSheetCommand valueForKey: @"hasSerializedShareEntity"] boolValue];
-        serializedShareEntity = [updateShareSheetCommand valueForKey: @"serializedShareEntity"];
-    } @catch (NSException *exception) {}
-    if (!hasSerializedShareEntity || !serializedShareEntity.length) return %orig;
-
-    Class gpbClass = NSClassFromString( @"GPBMessage");
-    GPBMessage *shareEntity = [gpbClass deserializeFromString:serializedShareEntity];
-    GPBUnknownFieldSet *fields = shareEntity.unknownFields;
-    NSString *shareURL = nil;
-
-    GPBUnknownField *clipField = [fields getField:8];
-    if (clipField) {
-        if (clipField.lengthDelimitedList.count == 1) {
-            GPBMessage *(*parse)(id, SEL, NSData *, NSError **) = (void *)objc_msgSend;
-            GPBMessage *clipMessage = parse(gpbClass, @selector(parseFromData:error:), clipField.lengthDelimitedList.firstObject, nil);
-            shareURL = YouModExtractShareID(clipMessage.unknownFields, 1, @"https://youtube.com/clip/%@");
-        }
-    }
-    if (!shareURL) shareURL = YouModExtractShareID(fields, 3, @"https://youtube.com/channel/%@");
-    if (!shareURL) {
-        NSString *playlistID = YouModExtractShareID(fields, 2, @"%@");
-        if (playlistID.length) {
-            if (![playlistID hasPrefix: @"PL"] && ![playlistID hasPrefix: @"FL"])
-                playlistID = [playlistID stringByAppendingString: @"&playnext=1"];
-            shareURL = [ @"https://youtube.com/playlist?list=" stringByAppendingString:playlistID];
-        }
-    }
-    if (!shareURL) shareURL = YouModExtractShareID(fields, 1, @"https://youtube.com/watch?v=%@");
-    if (!shareURL) return %orig;
-
-    UIActivityViewController *activityViewController = [[UIActivityViewController alloc] initWithActivityItems:@[shareURL] applicationActivities:nil];
-    [YouModTopViewController() presentViewController:activityViewController animated:YES completion:nil];
-}
-%end
-
 %ctor {
     if (IS_ENABLED(ShortsOnlyMode) && IS_ENABLED(HideShortsTab)) {
         [[NSUserDefaults standardUserDefaults] setBool:NO forKey:HideShortsTab];
     }
 }
+
+%hook YTFormattedStringLabel
+- (void)didMoveToWindow {
+    %orig;
+    if (IS_ENABLED(EnableTranslator)) {
+        if (!objc_getAssociatedObject(self, @selector(YouModTranslateText:))) {
+            self.userInteractionEnabled = YES;
+            UILongPressGestureRecognizer *longPress = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(YouModTranslateText:)];
+            longPress.minimumPressDuration = 0.5;
+            [self addGestureRecognizer:longPress];
+            objc_setAssociatedObject(self, @selector(YouModTranslateText:), @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        }
+    }
+}
+
+%new
+- (void)YouModTranslateText:(UILongPressGestureRecognizer *)gesture {
+    if (gesture.state != UIGestureRecognizerStateBegan) return;
+    
+    NSAttributedString *attrString = [self respondsToSelector:@selector(attributedText)] ? [self performSelector:@selector(attributedText)] : nil;
+    NSString *textToTranslate = attrString ? attrString.string : nil;
+    if (!textToTranslate || textToTranslate.length == 0) {
+        textToTranslate = [self respondsToSelector:@selector(text)] ? [self performSelector:@selector(text)] : nil;
+        if (!textToTranslate || textToTranslate.length == 0) return;
+    }
+    
+    NSString *originalText = objc_getAssociatedObject(self, @selector(YouModOriginalText));
+    if (originalText) {
+        if ([self respondsToSelector:@selector(setText:)]) {
+            [self performSelector:@selector(setText:) withObject:originalText];
+        }
+        objc_setAssociatedObject(self, @selector(YouModOriginalText), nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        YouModShowToast(@"Restored original text", self);
+        return;
+    }
+    
+    YouModShowToast(@"Translating...", self);
+    
+    NSString *encodedText = [textToTranslate stringByAddingPercentEncodingWithAllowedCharacters:[NSCharacterSet URLQueryAllowedCharacterSet]];
+    NSString *urlString = [NSString stringWithFormat:@"https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=en&dt=t&q=%@", encodedText];
+    NSURL *url = [NSURL URLWithString:urlString];
+    
+    [[[NSURLSession sharedSession] dataTaskWithURL:url completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
+        if (!error && data) {
+            @try {
+                NSArray *json = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+                if ([json isKindOfClass:[NSArray class]] && json.count > 0) {
+                    NSArray *sentences = json[0];
+                    NSMutableString *translatedText = [NSMutableString string];
+                    for (NSArray *sentence in sentences) {
+                        if ([sentence isKindOfClass:[NSArray class]] && sentence.count > 0) {
+                            [translatedText appendString:sentence[0]];
+                        }
+                    }
+                    if (translatedText.length > 0) {
+                        dispatch_async(dispatch_get_main_queue(), ^{
+                            objc_setAssociatedObject(self, @selector(YouModOriginalText), textToTranslate, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+                            if ([self respondsToSelector:@selector(setText:)]) {
+                                [self performSelector:@selector(setText:) withObject:translatedText];
+                            }
+                        });
+                    }
+                }
+            } @catch (NSException *e) {}
+        }
+    }] resume];
+}
+%end

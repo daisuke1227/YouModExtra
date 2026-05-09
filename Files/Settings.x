@@ -98,9 +98,7 @@ static NSString *GetCacheSize() { // YTLite - @dayanch96
     NSBundle *tweakBundle = YouModBundle();
     Class YTSettingsSectionItemClass = %c(YTSettingsSectionItem);
     YTSettingsViewController *settingsViewController = [self valueForKey:@"_settingsViewControllerDelegate"];
-    NSArray *holdSpeedLabels = @[@"Disabled", @"Default", @"0.25x", @"0.5x", @"0.75x", @"1.0x", @"1.25x", @"1.5x", @"1.75x", @"2.0x", @"3.0x", @"4.0x", @"5.0x"];
     NSArray *defaultSpeedLabels = @[@"0.25x", @"0.5x", @"0.75x", @"1.0x", @"1.25x", @"1.5x", @"1.75x", @"2.0x", @"3.0x", @"4.0x", @"5.0x"];
-    NSArray *qualityLabels = @[@"Default", @"Best", @"2160p60", @"2160p", @"1440p60", @"1440p", @"1080p60", @"1080p", @"720p60", @"720p", @"480p", @"360p"];
     YTSettingsSectionItem *(^pickerItem)(NSString *, NSString *, NSArray *, NSString *) = ^YTSettingsSectionItem *(NSString *title, NSString *navTitle, NSArray *labels, NSString *key) {
         return [YTSettingsSectionItemClass itemWithTitle:title
             accessibilityIdentifier:nil
@@ -416,12 +414,7 @@ static NSString *GetCacheSize() { // YTLite - @dayanch96
             BASIC_SWITCH(LOC(@"HIDE_CONTENT_WARNING"), LOC(@"HIDE_CONTENT_WARNING_DESC"), HideContentWarning),
             BASIC_SWITCH(LOC(@"AUTO_FULLSCREEN"), LOC(@"AUTO_FULLSCREEN_DESC"), AutoFullScreen),
             BASIC_SWITCH(LOC(@"PORTRAIT_FULLSCREEN"), LOC(@"PORTRAIT_FULLSCREEN_DESC"), PortFull),
-            BASIC_SWITCH(LOC(@"OLD_QUALITY_PICKER"), LOC(@"OLD_QUALITY_PICKER_DESC"), OldQualityPicker),
-            BASIC_SWITCH(LOC(@"EXTRA_SPEED"), LOC(@"EXTRA_SPEED_DESC"), ExtraSpeed),
-            pickerItem(@"Hold to speed", @"Hold to speed", holdSpeedLabels, HoldToSpeedIndex),
             pickerItem(@"Default playback speed", @"Default playback speed", defaultSpeedLabels, DefaultPlaybackRateIndex),
-            pickerItem(@"Quality on Wi-Fi", @"Select quality", qualityLabels, AutoQualityWiFiIndex),
-            pickerItem(@"Quality on cellular", @"Select quality", qualityLabels, AutoQualityCellularIndex),
             BASIC_SWITCH(LOC(@"DISABLE_HINTS"), LOC(@"DISABLE_HINTS_DESC"), DisableHints),
             BASIC_SWITCH(LOC(@"FORCE_MINIPLAYER"), LOC(@"FORCE_MINIPLAYER_DESC"), ForceMiniPlayer),
             BASIC_SWITCH(LOC(@"FORCE_SEEKBAR"), LOC(@"FORCE_SEEKBAR_DESC"), AlwaysShowSeekbar),
@@ -438,6 +431,7 @@ static NSString *GetCacheSize() { // YTLite - @dayanch96
             BASIC_SWITCH(@"Don't snap to chapter", @"Disable chapter snapping when scrubbing the progress bar.", DontSnapToChapter),
             BASIC_SWITCH(@"Screen lock button", @"Add a lock button to the player to disable touch.", ScreenLockButton),
             BASIC_SWITCH(@"Mute player button", @"Add a mute/unmute toggle button to the player overlay.", MutePlayerButton),
+            BASIC_SWITCH(@"Speed Master button", @"Add a Speed Master button to the player overlay for precise playback speed.", EnableSpeedMaster),
             BASIC_SWITCH(LOC(@"HIDE_LIKE_BUTTON"), LOC(@"HIDE_LIKE_BUTTON_DESC"), HideLikeButton),
             BASIC_SWITCH(LOC(@"HIDE_DISLIKE_BUTTON"), LOC(@"HIDE_DISLIKE_BUTTON_DESC"), HideDisLikeButton),
             BASIC_SWITCH(LOC(@"HIDE_SHARE_BUTTON"), LOC(@"HIDE_SHARE_BUTTON_DESC"), HideShareButton),
@@ -570,7 +564,6 @@ static NSString *GetCacheSize() { // YTLite - @dayanch96
             BASIC_SWITCH(LOC(@"HIDE_STARTUP_ANIMATIONS"), LOC(@"HIDE_STARTUP_ANIMATIONS_DESC"), HideStartupAni),
             BASIC_SWITCH(LOC(@"HIDE_PLAY_IN_NEXT_QUEUE"), LOC(@"HIDE_PLAY_IN_NEXT_QUEUE_DESC"), HidePlayInNextQueue),
             BASIC_SWITCH(LOC(@"HIDE_LIKE_DISLIKE_VOTES"), LOC(@"HIDE_LIKE_DISLIKE_VOTES_DESC"), HideLikeDislikeVotes),
-            BASIC_SWITCH(@"Native share sheet", @"Use the iOS share sheet for YouTube share actions.", NativeShare),
             BASIC_SWITCH(@"Description copy button", @"Add copy title/description controls to the description panel.", CopyVideoInfoPanel),
             BASIC_SWITCH(@"Post manager", @"Long-press community posts to copy or save their contents.", PostManager),
             BASIC_SWITCH(@"Save profile photos", @"Long-press profile images to save or copy them.", SaveProfilePhoto),
@@ -704,14 +697,10 @@ static NSString *GetCacheSize() { // YTLite - @dayanch96
         HideCastButtonNav: @YES,
         HideCastButtonPlayer: @YES,
         BackgroundPlayback: @YES,
-        OldQualityPicker: @YES,
         DownloadManager: @YES,
         DownloadSaveToPhotos: @YES,
         DownloadPreferDRCAudio: @NO,
-        HoldToSpeedIndex: @0,
         DefaultPlaybackRateIndex: @3,
-        AutoQualityWiFiIndex: @0,
-        AutoQualityCellularIndex: @0,
     }];
     %init;
 }

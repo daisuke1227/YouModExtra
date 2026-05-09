@@ -215,86 +215,6 @@ static void YouModAddEndTime(YTPlayerViewController *self, YTSingleVideoControll
 %end
 %end
 
-// Extra speed - adapted from YouSpeed
-%group Speed
-
-#define itemCount 13
-
-%hook YTMenuController
-
-- (NSMutableArray <YTActionSheetAction *> *)actionsForRenderers:(NSMutableArray <YTIMenuItemSupportedRenderers *> *)renderers fromView:(UIView *)fromView entry:(id)entry shouldLogItems:(BOOL)shouldLogItems firstResponder:(id)firstResponder {
-    NSUInteger index = [renderers indexOfObjectPassingTest:^BOOL(YTIMenuItemSupportedRenderers *renderer, NSUInteger idx, BOOL *stop) {
-        YTIMenuItemSupportedRenderersElementRendererCompatibilityOptionsExtension *extension = (YTIMenuItemSupportedRenderersElementRendererCompatibilityOptionsExtension *)[renderer.elementRenderer.compatibilityOptions messageForFieldNumber:396644439];
-        BOOL isVideoSpeed = [extension.menuItemIdentifier isEqualToString:@"menu_item_playback_speed"];
-        if (isVideoSpeed) *stop = YES;
-        return isVideoSpeed;
-    }];
-    NSMutableArray <YTActionSheetAction *> *actions = %orig;
-    if (index != NSNotFound) {
-        YTActionSheetAction *action = actions[index];
-        action.handler = ^{
-            [firstResponder didPressVarispeed:fromView];
-        };
-        UIView *elementView = [action.button valueForKey:@"_elementView"];
-        elementView.userInteractionEnabled = NO;
-    }
-    return actions;
-}
-
-%end
-
-%hook YTVarispeedSwitchController
-
-- (id)init {
-    self = %orig;
-    float speeds[] = {0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0, 5.0, 7.5, 10.0};
-    id options[itemCount];
-    Class YTVarispeedSwitchControllerOptionClass = %c(YTVarispeedSwitchControllerOption);
-    for (int i = 0; i < itemCount; ++i) {
-        NSString *title = [NSString stringWithFormat:@"%.2fx", speeds[i]];
-        options[i] = [[YTVarispeedSwitchControllerOptionClass alloc] initWithTitle:title rate:speeds[i]];
-    }
-    [self setValue:[NSArray arrayWithObjects:options count:itemCount] forKey:@"_options"];
-    return self;
-}
-
-%end
-
-%hook YTVarispeedSwitchControllerImpl
-
-- (id)init {
-    self = %orig;
-    float speeds[] = {0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0, 5.0, 7.5, 10.0};
-    id options[itemCount];
-    Class YTVarispeedSwitchControllerOptionClass = %c(YTVarispeedSwitchControllerOption);
-    for (int i = 0; i < itemCount; ++i) {
-        NSString *title = [NSString stringWithFormat:@"%.2fx", speeds[i]];
-        options[i] = [[YTVarispeedSwitchControllerOptionClass alloc] initWithTitle:title rate:speeds[i]];
-    }
-    [self setValue:[NSArray arrayWithObjects:options count:itemCount] forKey:@"_options"];
-    return self;
-}
-
-%end
-
-%hook YTIPlayerHotConfig
-
-%new(f@:)
-- (float)maximumPlaybackRate {
-    return 10.0;
-}
-
-%end
-
-%hook YTIGranularVariableSpeedConfig
-
-%new(d@:)
-- (int)maximumPlaybackRate {
-    return 10.0 * 100;
-}
-
-%end
-%end
 
 // Disable Hints
 %hook YTSettings
@@ -392,48 +312,6 @@ static void YouModAddEndTime(YTPlayerViewController *self, YTSingleVideoControll
 */
 
 // YTClassicVideoQuality (https://github.com/PoomSmart/YTClassicVideoQuality)
-%group OldVideoQuality
-%hook YTIMediaQualitySettingsHotConfig
-%new(B@:)
-- (BOOL)enableQuickMenuVideoQualitySettings { return NO; }
-%end
-
-%hook YTVideoQualitySwitchOriginalController
-%property (retain, nonatomic) YTVideoQualitySwitchRedesignedController *redesignedController;
-- (void)setUserSelectableFormats:(NSArray <MLFormat *> *)formats {
-    if (self.redesignedController == nil)
-        self.redesignedController = [[%c(YTVideoQualitySwitchRedesignedController) alloc] initWithServiceRegistryScope:nil parentResponder:nil];
-    [self.redesignedController setValue:[self valueForKey:@"_video"] forKey:@"_video"];
-    NSArray <MLFormat *> *newFormats = [self.redesignedController respondsToSelector:@selector(addRestrictedFormats:)] ? [self.redesignedController addRestrictedFormats:formats] : formats;
-    %orig(newFormats);
-}
-- (void)dealloc {
-    self.redesignedController = nil;
-    %orig;
-}
-%end
-
-%hook YTMenuController
-- (NSMutableArray <YTActionSheetAction *> *)actionsForRenderers:(NSMutableArray <YTIMenuItemSupportedRenderers *> *)renderers fromView:(UIView *)fromView entry:(id)entry shouldLogItems:(BOOL)shouldLogItems firstResponder:(id)firstResponder {
-    NSUInteger index = [renderers indexOfObjectPassingTest:^BOOL(YTIMenuItemSupportedRenderers *renderer, NSUInteger idx, BOOL *stop) {
-        YTIMenuItemSupportedRenderersElementRendererCompatibilityOptionsExtension *extension = (YTIMenuItemSupportedRenderersElementRendererCompatibilityOptionsExtension *)[renderer.elementRenderer.compatibilityOptions messageForFieldNumber:396644439];
-        BOOL isVideoQuality = [extension.menuItemIdentifier isEqualToString:@"menu_item_video_quality"];
-        if (isVideoQuality) *stop = YES;
-        return isVideoQuality;
-    }];
-    NSMutableArray <YTActionSheetAction *> *actions = %orig;
-    if (index != NSNotFound) {
-        YTActionSheetAction *action = actions[index];
-        action.handler = ^{
-            [firstResponder didPressVideoQuality:fromView];
-        };
-        UIView *elementView = [action.button valueForKey:@"_elementView"];
-        elementView.userInteractionEnabled = NO;
-    }
-    return actions;
-}
-%end
-%end
 
 // Gestures - @bhackel (YTLitePlus)
 %group Gestures
@@ -665,12 +543,6 @@ static void YouModAddEndTime(YTPlayerViewController *self, YTSingleVideoControll
 
 %ctor {
     %init;
-    if (IS_ENABLED(OldQualityPicker)) {
-        %init(OldVideoQuality);
-    }
-    if (IS_ENABLED(ExtraSpeed) || IS_ENABLED(GestureControls)) {
-        %init(Speed);
-    }
     if (IS_ENABLED(HidePaidPromoOverlay)) {
         %init(PaidPromoOverlay);
     }

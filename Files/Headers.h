@@ -112,8 +112,6 @@
 #define HideContentWarning @"YouModHideContentWarning"
 #define AutoFullScreen @"YouModAutoFullScreen"
 #define PortFull @"YouModPortraitFullscreen"
-#define OldQualityPicker @"YouModUseOldQualityPicker"
-#define ExtraSpeed @"YouModAddExtraSpeed"
 #define DisableHints @"YouModDisableHints"
 #define ForceMiniPlayer @"YouModForceMiniPlayer"
 #define AlwaysShowSeekbar @"YouModAlwaysShowSeekbar"
@@ -130,10 +128,9 @@
 #define ScreenLockButton @"YouModScreenLockButton"
 #define MutePlayerButton @"YouModMutePlayerButton"
 #define DontSnapToChapter @"YouModDontSnapToChapter"
-#define HoldToSpeedIndex @"YouModHoldToSpeedIndex"
+#define EnableTranslator @"YouModEnableTranslator"
+#define EnableSpeedMaster @"YouModEnableSpeedMaster"
 #define DefaultPlaybackRateIndex @"YouModDefaultPlaybackRateIndex"
-#define AutoQualityWiFiIndex @"YouModAutoQualityWiFiIndex"
-#define AutoQualityCellularIndex @"YouModAutoQualityCellularIndex"
 #define HideLikeButton @"YouModHideLikeButton"
 #define HideDisLikeButton @"YouModHideDisLikeButton"
 #define HideShareButton @"YouModHideShareButton"
@@ -198,7 +195,6 @@
 #define HideStartupAni @"YouModHideStartupAnimations"
 #define HidePlayInNextQueue @"YouModHidePlayInNextQueue"
 #define HideLikeDislikeVotes @"YouModHideLikeDislikeVotes"
-#define NativeShare @"YouModNativeShare"
 #define CopyVideoInfoPanel @"YouModCopyVideoInfoPanel"
 #define PostManager @"YouModPostManager"
 #define SaveProfilePhoto @"YouModSaveProfilePhoto"
@@ -246,6 +242,9 @@ typedef NS_ENUM(NSUInteger, GestureSection) {
 @end
 
 @interface YTChipCloudCell : UICollectionViewCell
+@end
+
+@interface YTFormattedStringLabel : UIView
 @end
 
 @interface YTSegmentableInlinePlayerBarView : UIView
