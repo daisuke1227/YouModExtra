@@ -1,13 +1,14 @@
 # YouMod
 A tweak that's try to recreate features like in YTLite as much as possible. Contributors are welcome! ^^
 
-Thanks for 100 stars and forks in a week! This might be the best project I've done.
+Thanks for 200 stars and forks! This might be the best project I've done.
 
 If you want to contribute this project, scroll down below for how to do it.
 ## Why I created this project?
 The reason is because of YTLite no longer free. So I'll try my best to recreate all the features as much as I can, plus alternative tweaks combined.
 ## Features
 This tweak can hide, remove elements and others in YouTube. Such as:
+- Downloading
 - Appearance
 - Navigation bar
 - Player
@@ -47,6 +48,7 @@ This project uses GPLv3 license. See [LICENSE](https://github.com/Tonwalter888/Y
 - [YTLitePlus](https://github.com/YTLitePlus/YTLitePlus)
 - [uYouEnhanced](https://github.com/arichornlover/uYouEnhanced) - arichornlover
 - [YTweaks](https://github.com/fosterbarnes/YTweaks) - fosterbarnes
+- [daisuke1227](https://github.com/daisuke1227) - Implementing download features
 - And [PoomSmart](https://github.com/PoomSmart)'s tweaks
 
 Also thanks to all the contributors in the past!

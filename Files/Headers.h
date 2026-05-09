@@ -55,6 +55,10 @@
 
 #define IS_ENABLED(k) [[NSUserDefaults standardUserDefaults] boolForKey:k]
 #define INTFORVAL(v) [[NSUserDefaults standardUserDefaults] integerForKey:v]
+// Downloading
+#define DownloadManager @"YouModDownloadManager"
+#define DownloadSaveToPhotos @"YouModDownloadSaveToPhotos"
+#define DownloadPreferDRCAudio @"YouModDownloadPreferDRCAudio"
 // Cache
 #define AutoClearCache @"YouModAutoClearCache"
 // Appearance

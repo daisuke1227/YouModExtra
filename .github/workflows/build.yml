@@ -82,6 +82,9 @@ jobs:
             cd ${{ github.workspace }}
           fi
 
+      - name: Fix Theos od broken pipe issue
+        run: sed -i '' 's/od -c "$i" | head/od -c "$i" 2>\/dev\/null | head/g' $THEOS/bin/convert_xml_plist.sh || true
+
       - name: Build YouMod
         run: |
           cd YouMod

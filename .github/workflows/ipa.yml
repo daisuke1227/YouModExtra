@@ -62,12 +62,6 @@ on:
         required: false
         type: boolean
 
-      youmute:
-        description: "Integrate YouMute"
-        default: true
-        required: false
-        type: boolean
-
       youloop:
         description: "Integrate YouLoop"
         default: true
@@ -104,26 +98,8 @@ on:
         required: false
         type: boolean
 
-      gonerino:
-        description: "Integrate Gonerino"
-        default: true
-        required: false
-        type: boolean
-
       getcap:
         description: "Integrate YouGetCaption"
-        default: true
-        required: false
-        type: boolean
-
-      ytshare:
-        description: "Integrate youtube-native-share"
-        default: true
-        required: false
-        type: boolean
-
-      volboost:
-        description: "Integrate VolumeBoostYT (Require iOS 16+)"
         default: true
         required: false
         type: boolean
@@ -143,7 +119,7 @@ jobs:
       - name: Hide Sensitive Inputs
         uses: levibostian/action-hide-sensitive-inputs@v1
         with:
-          exclude_inputs: bundle_id,display_name,youpip,ytuhd,ryd,abconfig,youquality,youspeed,youmute,youloop,ytweaks,youslider,ytholdspeed,youchoose,youshare,gonerino,getcap,demc,ytshare,volboost
+          exclude_inputs: bundle_id,display_name,youpip,ytuhd,ryd,abconfig,youquality,youspeed,youloop,ytweaks,youslider,ytholdspeed,youchoose,youshare,getcap,demc
           
       - name: Download and Validate IPA
         run: |
@@ -223,6 +199,9 @@ jobs:
             cd ${{ github.workspace }}
           fi
 
+      - name: Fix Theos od broken pipe issue
+        run: sed -i '' 's/od -c "$i" | head/od -c "$i" 2>\/dev\/null | head/g' $THEOS/bin/convert_xml_plist.sh || true
+
       - name: Install cyan and tbd
         run: |
            pipx install https://github.com/asdfzxcvbn/pyzule-rw/archive/main.zip
@@ -258,7 +237,7 @@ jobs:
         run: git clone --quiet --depth=1 https://github.com/PoomSmart/YouGroupSettings.git
            
       - name: Clone YTVideoOverlay
-        if: ${{ inputs.youpip || inputs.ytuhd || inputs.youquality || inputs.youspeed || inputs.youmute || inputs.youloop || inputs.youshare || inputs.getcap }}
+        if: ${{ inputs.youpip || inputs.ytuhd || inputs.youquality || inputs.youspeed || inputs.youloop || inputs.youshare || inputs.getcap }}
         run: git clone --quiet --depth=1 https://github.com/PoomSmart/YTVideoOverlay.git
           
       - name: Clone YTABConfig
@@ -276,10 +255,6 @@ jobs:
       - name: Clone DontEatMyContent
         if: ${{ inputs.demc }}
         run: git clone --quiet --depth=1 https://github.com/therealFoxster/DontEatMyContent.git
-
-      - name: Clone YouMute
-        if: ${{ inputs.youmute }}
-        run: git clone --quiet --depth=1 https://github.com/PoomSmart/YouMute.git
     
       - name: Clone YouLoop
         if: ${{ inputs.youloop }}
@@ -317,21 +292,9 @@ jobs:
         if: ${{ inputs.ytweaks }}
         run: git clone --quiet --depth=1 https://github.com/fosterbarnes/YTweaks.git
 
-      - name: Clone Gonerino
-        if: ${{ inputs.gonerino }}
-        run: git clone --quiet --depth=1 https://github.com/castdrian/Gonerino.git
-
       - name: Clone YouGetCaption
         if: ${{ inputs.getcap }}
         run: git clone --quiet --depth=1 https://github.com/PoomSmart/YouGetCaption.git
-
-      - name: Clone youtube-native-share
-        if: ${{ inputs.ytshare }}
-        run: git clone --quiet --depth=1 https://github.com/jkhsjdhjs/youtube-native-share.git
-
-      - name: Clone VolumeBoostYT
-        if: ${{ inputs.volboost }}
-        run: git clone --quiet --depth=1 https://github.com/VasirakCalgux/VolumeBoostYT.git
 
       - name: Build YouMod
         run: |
@@ -368,7 +331,7 @@ jobs:
           mv packages/*.deb ${{ github.workspace }}/ygs.deb
 
       - name: Build YTVideoOverlay
-        if: ${{ inputs.youpip || inputs.ytuhd || inputs.youquality || inputs.youspeed || inputs.youmute || inputs.youloop || inputs.youshare || inputs.getcap }}
+        if: ${{ inputs.youpip || inputs.ytuhd || inputs.youquality || inputs.youspeed || inputs.youloop || inputs.youshare || inputs.getcap }}
         run: |
           cd YTVideoOverlay
           make clean package DEBUG=0 FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=rootless
@@ -401,13 +364,6 @@ jobs:
           cd DontEatMyContent
           make clean package DEBUG=0 FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=rootless
           mv packages/*.deb ${{ github.workspace }}/demc.deb
-
-      - name: Build YouMute
-        if: ${{ inputs.youmute }}
-        run: |
-          cd YouMute
-          make clean package DEBUG=0 FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=rootless
-          mv packages/*.deb ${{ github.workspace }}/ym.deb
 
       - name: Build YouLoop
         if: ${{ inputs.youloop }}
@@ -458,13 +414,6 @@ jobs:
           cd YTweaks
           make clean package DEBUG=0 FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=rootless
           mv packages/*.deb ${{ github.workspace }}/ytweaks.deb
-          
-      - name: Build Gonerino
-        if: ${{ inputs.gonerino }}
-        run: |
-          cd Gonerino
-          make clean package DEBUG=0 FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=rootless
-          mv packages/*.deb ${{ github.workspace }}/gonerino.deb
 
       - name: Build YouGetCaption
         if: ${{ inputs.getcap }}
@@ -472,21 +421,6 @@ jobs:
           cd YouGetCaption
           make clean package DEBUG=0 FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=rootless
           mv packages/*.deb ${{ github.workspace }}/ygc.deb
-
-      - name: Build youtube-native-share
-        if: ${{ inputs.ytshare }}
-        run: |
-          cd youtube-native-share
-          git clone --quiet --depth=1 https://github.com/protocolbuffers/protobuf.git
-          make clean package DEBUG=0 FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=rootless ARCHS=arm64
-          mv packages/*.deb ${{ github.workspace }}/ytnativeshare.deb
-
-      - name: Build VolumeBoostYT
-        if: ${{ inputs.volboost }}
-        run: |
-          cd VolumeBoostYT
-          make clean package DEBUG=0 FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=rootless ARCHS=arm64
-          mv packages/*.deb ${{ github.workspace }}/volboostyt.deb
           
       - name: Inject Tweaks Into IPA
         run: |

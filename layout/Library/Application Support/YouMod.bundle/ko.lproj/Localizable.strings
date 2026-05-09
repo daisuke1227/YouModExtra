@@ -31,6 +31,14 @@
 "AUTO_CLEARCACHE" = "자동 캐시 지우기";
 "AUTO_CLEARCACHE_DESC" = "앱을 켤 때마다 쌓여있는 캐시를 자동으로 지워서 용량을 확보합니다.";
 
+"DOWNLOADING" = "Downloading";
+"DOWNLOAD_MANAGER" = "Download Manager";
+"DOWNLOAD_MANAGER_DESC" = "Replaces YouTube's video downloader with YouMod one. With ablity to downloading videos, audios, captions, and thumbnails";
+"DOWNLOAD_SAVE_PHOTOS" = "Automatically save to Photos";
+"DOWNLOAD_SAVE_PHOTOS_DESC" = "Automatically saves downloaded videos and images directly to your Photos app.";
+"DOWNLOAD_DRC_AUDIO" = "Prefer DRC Audio";
+"DOWNLOAD_DRC_AUDIO_DESC" = "Prioritizes downloading audio tracks with Dynamic Range Compression for more consistent volume levels.";
+
 "APPEARANCE" = "화면 및 테마";
 "OLED_THEME" = "OLED dark mode";
 "OLED_THEME_DESC" = "Uses pure black (OLED) color for the app dark theme.";

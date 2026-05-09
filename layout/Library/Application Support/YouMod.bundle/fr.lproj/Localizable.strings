@@ -31,6 +31,14 @@
 "AUTO_CLEARCACHE" = "Vider le cache automatiquement";
 "AUTO_CLEARCACHE_DESC" = "Vider le cache automatiquement lors du lancement de l'application.";
 
+"DOWNLOADING" = "Downloading";
+"DOWNLOAD_MANAGER" = "Download Manager";
+"DOWNLOAD_MANAGER_DESC" = "Replaces YouTube's video downloader with YouMod one. With ablity to downloading videos, audios, captions, and thumbnails";
+"DOWNLOAD_SAVE_PHOTOS" = "Automatically save to Photos";
+"DOWNLOAD_SAVE_PHOTOS_DESC" = "Automatically saves downloaded videos and images directly to your Photos app.";
+"DOWNLOAD_DRC_AUDIO" = "Prefer DRC Audio";
+"DOWNLOAD_DRC_AUDIO_DESC" = "Prioritizes downloading audio tracks with Dynamic Range Compression for more consistent volume levels.";
+
 "APPEARANCE" = "Apparence";
 "OLED_THEME" = "Thème OLED";
 "OLED_THEME_DESC" = "Applique un thème noir (OLED) à toute l'application pour le thème sombre.";
