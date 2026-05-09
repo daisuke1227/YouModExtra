@@ -68,5 +68,17 @@
     if (self.subviews.count > 1 && [self.subviews[1].accessibilityIdentifier isEqualToString:@"id.yoodle.logo"] && IS_ENABLED(HideYTLogo)) {
         self.subviews[1].hidden = YES;
     }
+    if (IS_ENABLED(CenterYTLogo)) {
+        for (UIView *subview in self.subviews) {
+            if ([subview.accessibilityIdentifier isEqualToString:@"id.yoodle.logo"]) {
+                CGFloat parentWidth = self.bounds.size.width;
+                CGFloat subviewWidth = subview.frame.size.width;
+                CGRect frame = subview.frame;
+                frame.origin.x = (parentWidth - subviewWidth) / 2.0;
+                subview.frame = frame;
+                break;
+            }
+        }
+    }
 }
 %end

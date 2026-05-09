@@ -182,10 +182,9 @@ static NSString *GetCacheSize() { // YTLite - @dayanch96
     ];
     [sectionItems addObject:sourceCodes];
 
-    /*
     // Center YT logo
     YTSettingsSectionItem *centerytlogo = [YTSettingsSectionItemClass switchItemWithTitle:LOC(@"CENTER_YT_LOGO")
-        titleDescription:LOC(@"CENTER_YT_LOGO_DESC") // Set center logo
+        titleDescription:LOC(@"CENTER_YT_LOGO_DESC")
         accessibilityIdentifier:nil
         switchOn:IS_ENABLED(CenterYTLogo)
         switchBlock:^BOOL (YTSettingsCell *cell, BOOL enabled) {
@@ -194,7 +193,6 @@ static NSString *GetCacheSize() { // YTLite - @dayanch96
         }
         settingItemId:0];
     [sectionItems addObject:centerytlogo];
-    */
 
     // Settings
     YTSettingsSectionItem *settings = [YTSettingsSectionItemClass itemWithTitle:nil
@@ -429,6 +427,7 @@ static NSString *GetCacheSize() { // YTLite - @dayanch96
             BASIC_SWITCH(LOC(@"FORCE_SEEKBAR"), LOC(@"FORCE_SEEKBAR_DESC"), AlwaysShowSeekbar),
             BASIC_SWITCH(@"Persistent progress bar", @"Keep the player progress bar visible.", PersistentProgressBar),
             BASIC_SWITCH(@"Stock volume HUD", @"Use the iOS system volume HUD in fullscreen.", StockVolumeHUD),
+            BASIC_SWITCH(@"No HUD messages", @"Suppress in-player HUD overlay messages.", NoHUDMessages),
             BASIC_SWITCH(@"Red progress bar", @"Force the classic red playback progress bar.", RedProgressBar),
             BASIC_SWITCH(@"Pause on overlay", @"Pause playback when the player overlay is visible.", PauseOnOverlay),
             BASIC_SWITCH(@"No two-finger chapter seek", @"Disable two-finger double-tap chapter seeking.", NoTwoFingerSnapToChapter),
@@ -436,6 +435,9 @@ static NSString *GetCacheSize() { // YTLite - @dayanch96
             BASIC_SWITCH(@"Video end time", @"Show the estimated end time beside the duration.", VideoEndTime),
             BASIC_SWITCH(@"24-hour end time", @"Use 24-hour time for the estimated end time.", Use24HourTime),
             BASIC_SWITCH(@"Copy timestamp on pause", @"Copy the current timestamped link when pause is pressed.", CopyWithTimestamp),
+            BASIC_SWITCH(@"Don't snap to chapter", @"Disable chapter snapping when scrubbing the progress bar.", DontSnapToChapter),
+            BASIC_SWITCH(@"Screen lock button", @"Add a lock button to the player to disable touch.", ScreenLockButton),
+            BASIC_SWITCH(@"Mute player button", @"Add a mute/unmute toggle button to the player overlay.", MutePlayerButton),
             BASIC_SWITCH(LOC(@"HIDE_LIKE_BUTTON"), LOC(@"HIDE_LIKE_BUTTON_DESC"), HideLikeButton),
             BASIC_SWITCH(LOC(@"HIDE_DISLIKE_BUTTON"), LOC(@"HIDE_DISLIKE_BUTTON_DESC"), HideDisLikeButton),
             BASIC_SWITCH(LOC(@"HIDE_SHARE_BUTTON"), LOC(@"HIDE_SHARE_BUTTON_DESC"), HideShareButton),
@@ -542,7 +544,7 @@ static NSString *GetCacheSize() { // YTLite - @dayanch96
             BASIC_SWITCH(LOC(@"HIDE_SHORTS_TAB"), LOC(@"HIDE_SHORTS_TAB_DESC"), HideShortsTab),
             BASIC_SWITCH(LOC(@"HIDE_CREATE_BUTTON"), LOC(@"HIDE_CREATE_BUTTON_DESC"), HideCreateButton),
             BASIC_SWITCH(LOC(@"HIDE_SUBSCRIPT_TAB"), LOC(@"HIDE_SUBSCRIPT_TAB_DESC"), HideSubscriptTab),
-            // BASIC_SWITCH(@"Hide Library tab", @"Remove the Library/You tab from the tab bar.", HideLibraryTab),
+            BASIC_SWITCH(@"Hide Library tab", @"Remove the Library/You tab from the tab bar.", HideLibraryTab),
         ];        
         YTSettingsPickerViewController *picker = [[%c(YTSettingsPickerViewController) alloc] initWithNavTitle:LOC(@"TABBAR") pickerSectionTitle:nil rows:rows selectedItemIndex:0 parentResponder:[self parentResponder]];
         [settingsViewController pushViewController:picker];

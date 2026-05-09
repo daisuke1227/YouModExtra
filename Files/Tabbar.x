@@ -21,14 +21,9 @@
         if ([pID isEqualToString:@"FEsubscriptions"] && IS_ENABLED(HideSubscriptTab)) {
             [indicesToRemove addIndex:i];
         }
-        /*
         if ([pID isEqualToString:@"FElibrary"] && IS_ENABLED(HideLibraryTab)) {
             [indicesToRemove addIndex:i];
         }
-        if ([pID isEqualToString:@"FEshorts"] && IS_ENABLED(RestoreExploreTab)) {
-            [indicesToRemove addIndex:i];
-        }
-        */
     }
     // Remove them all at once so the layout doesn't break
     [items removeObjectsAtIndexes:indicesToRemove];

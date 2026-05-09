@@ -66,6 +66,7 @@
 #define OLEDKeyboard @"YouModEnablesOLEDKeyboard"
 // Navigation bar
 #define HideYTLogo @"YouModHideYTLogo"
+#define CenterYTLogo @"YouModCenterYTLogo"
 #define YTPremiumLogo @"YouModYTPremiumLogo"
 #define HideNoti @"YouModHideNotificationButton"
 #define HideSearch @"YouModHideSearchButton"
@@ -118,6 +119,7 @@
 #define AlwaysShowSeekbar @"YouModAlwaysShowSeekbar"
 #define PersistentProgressBar @"YouModPersistentProgressBar"
 #define StockVolumeHUD @"YouModStockVolumeHUD"
+#define NoHUDMessages @"YouModNoHUDMessages"
 #define RedProgressBar @"YouModRedProgressBar"
 #define PauseOnOverlay @"YouModPauseOnOverlay"
 #define NoTwoFingerSnapToChapter @"YouModNoTwoFingerSnapToChapter"
@@ -125,6 +127,9 @@
 #define VideoEndTime @"YouModVideoEndTime"
 #define Use24HourTime @"YouModUse24HourTime"
 #define CopyWithTimestamp @"YouModCopyWithTimestamp"
+#define ScreenLockButton @"YouModScreenLockButton"
+#define MutePlayerButton @"YouModMutePlayerButton"
+#define DontSnapToChapter @"YouModDontSnapToChapter"
 #define HoldToSpeedIndex @"YouModHoldToSpeedIndex"
 #define DefaultPlaybackRateIndex @"YouModDefaultPlaybackRateIndex"
 #define AutoQualityWiFiIndex @"YouModAutoQualityWiFiIndex"
@@ -181,7 +186,7 @@
 #define HideShortsTab @"YouModHideShortsTab"
 #define HideCreateButton @"YouModHideCreateButton"
 #define HideSubscriptTab @"YouModHideSubscriptionsTab"
-// #define HideLibraryTab @"YouModHideLibraryTab"
+#define HideLibraryTab @"YouModHideLibraryTab"
 
 #define BackgroundPlayback @"YouModEnablesBackgroundPlayback"
 #define DisablesShortsPiP @"YouModTrytoDisablesShortsPiP"
@@ -243,6 +248,9 @@ typedef NS_ENUM(NSUInteger, GestureSection) {
 @interface YTChipCloudCell : UICollectionViewCell
 @end
 
+@interface YTSegmentableInlinePlayerBarView : UIView
+@property (nonatomic, assign, readwrite) BOOL enableSnapToChapter;
+@end
 @interface YTSearchViewController : UIViewController
 @end
 

@@ -191,15 +191,14 @@ static void YouModAddEndTime(YTPlayerViewController *self, YTSingleVideoControll
 - (unsigned long long)allowedFullScreenOrientations { return IS_ENABLED(PortFull) ? UIInterfaceOrientationMaskAllButUpsideDown : %orig; }
 %end
 
-/* Disable Snap To Chapter (https://github.com/qnblackcat/uYouPlus/blob/main/uYouPlus.xm#L457-464) - GOT REMOVED
+// Disable Snap To Chapter
 %hook YTSegmentableInlinePlayerBarView
-- (void)didMoveToWindow { %orig; if (ytlBool(@"dontSnapToChapter")) self.enableSnapToChapter = NO; }
+- (void)didMoveToWindow { %orig; if (IS_ENABLED(DontSnapToChapter)) self.enableSnapToChapter = NO; }
 %end
 
 %hook YTModularPlayerBarController
-- (void)setEnableSnapToChapter:(BOOL)arg { %orig(NO); } // idk this works or not
+- (void)setEnableSnapToChapter:(BOOL)arg { IS_ENABLED(DontSnapToChapter) ? %orig(NO) : %orig; }
 %end
-*/
 
 // Replace previous/next buttons with back and forward
 %hook YTColdConfig
