@@ -199,7 +199,7 @@ jobs:
             cd ${{ github.workspace }}
           fi
 
-      - name: Fix Theos od broken pipe issue
+      - name: Fix Theos od broken pipe issue (again)
         run: sed -i '' 's/od -c "$i" | head/od -c "$i" 2>\/dev\/null | head/g' $THEOS/bin/convert_xml_plist.sh || true
 
       - name: Install cyan and tbd
@@ -300,7 +300,10 @@ jobs:
         run: |
           cd YouMod
           echo "YOUMOD_VERSION=$(grep '^Version:' control | cut -d ' ' -f2)" >> $GITHUB_ENV
-          sed -i 's/if (\[subview.accessibilityIdentifier isEqualToString:@"id.yoodle.logo"\])/if (\[subview.accessibilityIdentifier isEqualToString:@"id.yoodle.logo"\] || \[subview.accessibilityIdentifier isEqualToString:@"id.youtube.logo"\] || \[subview.accessibilityIdentifier isEqualToString:@"id.premium.logo"\] || \[NSStringFromClass(subview.class) containsString:@"Logo"\])/g' Files/Navbar.x
+          # Fix logo detection in Navbar.x without breaking idempotency
+          if ! grep -q 'id.youtube.logo' Files/Navbar.x; then
+            sed -i '' 's/if (\[subview.accessibilityIdentifier isEqualToString:@"id.yoodle.logo"\])/if (\[subview.accessibilityIdentifier isEqualToString:@"id.yoodle.logo"\] || \[subview.accessibilityIdentifier isEqualToString:@"id.youtube.logo"\] || \[subview.accessibilityIdentifier isEqualToString:@"id.premium.logo"\] || \[NSStringFromClass(subview.class) containsString:@"Logo"\])/g' Files/Navbar.x
+          fi
           make clean package DEBUG=0 FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=rootless
           cp packages/*.deb ${{ github.workspace }}/youmod.deb
         
