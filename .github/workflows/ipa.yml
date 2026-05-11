@@ -441,8 +441,8 @@ jobs:
               echo "Extracting $f..."
               dpkg-deb -x "$f" tweak_ext
               find tweak_ext -name "*.dylib" -exec mv {} Tweaks/ \;
-              find tweak_ext -name "*.bundle" -exec mv {} . \;
-              find tweak_ext -name "*.framework" -exec mv {} Frameworks/ \;
+              find tweak_ext -type d -name "*.bundle" -prune -exec mv {} . \;
+              find tweak_ext -type d -name "*.framework" -prune -exec mv {} Frameworks/ \;
               rm -rf tweak_ext
             fi
           done
