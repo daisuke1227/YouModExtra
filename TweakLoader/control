@@ -1,0 +1,9 @@
+Package: com.yourcompany.tweakloader
+Name: TweakLoader
+Depends: mobilesubstrate
+Version: 1.0.0
+Architecture: iphoneos-arm
+Description: An awesome tweak to load tweaks
+Maintainer: YouModExtra
+Author: YouModExtra
+Section: Tweaks
