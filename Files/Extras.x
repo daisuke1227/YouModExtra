@@ -287,8 +287,14 @@ static void YouModCancelSleepTimer(void) {
 
 static void YouModPauseForSleepTimer(void) {
     YTPlayerViewController *player = YouModSleepTimerPlayer;
-    if ([player respondsToSelector: @selector(pause)])
-        [player pause];
+    if (player) {
+        if ([player respondsToSelector: @selector(pause)]) {
+            [player pause];
+        } else {
+            // Fallback: use notification or other method if pause is not available
+            [[NSNotificationCenter defaultCenter] postNotificationName:@"YouModPausePlayback" object:nil];
+        }
+    }
     YouModCancelSleepTimer();
     YouModShowToast( @"Sleep timer ended", player);
 }
@@ -1124,6 +1130,9 @@ static CGRect YouModSponsorBlockTrackFrame(YTInlinePlayerBarContainerView *bar) 
         [self bringSubviewToFront:speedButton];
         currentX += 40.0;
     }
+
+    // Sleep timer is now handled entirely by the enhanced gesture in Player.x
+    // The redundant gesture here has been removed to prevent duplicate menus.
 }
 
 %new
@@ -1226,25 +1235,31 @@ static void YouModAddSleepTimerAction(YTDefaultSheetController *sheet, NSString 
 
 - (void)setSeekAnywherePanGestureRecognizer:(id)arg1 {
     %orig;
-    if (IS_ENABLED(SleepTimerEnabled) && !objc_getAssociatedObject(self, @selector(YouModShowSleepTimer:))) {
-        UILongPressGestureRecognizer *sleepPress = [[UILongPressGestureRecognizer alloc] initWithTarget:self action: @selector(YouModShowSleepTimer:)];
-        sleepPress.numberOfTouchesRequired = 2;
-        sleepPress.minimumPressDuration = 0.5;
-        [self addGestureRecognizer:sleepPress];
-        objc_setAssociatedObject(self, @selector(YouModShowSleepTimer:), @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-    }
 }
 
 %new
 - (void)YouModSponsorBlockButtonTapped:(UIButton *)sender {
-    YTPlayerViewController *player = (YTPlayerViewController *)(self.delegate.parentViewController ?: YouModSponsorBlockCurrentPlayer);
-    YouModSponsorBlockPresentSheet(player);
+    id delegate = [self respondsToSelector:@selector(delegate)] ? [self delegate] : nil;
+    YTPlayerViewController *player = (YTPlayerViewController *)([delegate respondsToSelector:@selector(parentViewController)] ? [delegate parentViewController] : YouModSponsorBlockCurrentPlayer);
+    if (!player && [delegate respondsToSelector:@selector(delegate)]) {
+        id overlayVC = [delegate delegate];
+        if ([overlayVC respondsToSelector:@selector(parentViewController)])
+            player = (YTPlayerViewController *)[overlayVC parentViewController];
+    }
+    YouModSponsorBlockPresentSheet(player ?: YouModSponsorBlockCurrentPlayer);
 }
 
 %new
 - (void)YouModShowSleepTimer:(UILongPressGestureRecognizer *)gesture {
     if (gesture.state != UIGestureRecognizerStateBegan) return;
-    YTPlayerViewController *player = (YTPlayerViewController *)(self.delegate.parentViewController ?: YouModSleepTimerPlayer);
+    id delegate = [self respondsToSelector:@selector(delegate)] ? [self delegate] : nil;
+    YTPlayerViewController *player = (YTPlayerViewController *)([delegate respondsToSelector:@selector(parentViewController)] ? [delegate parentViewController] : YouModSleepTimerPlayer);
+    if (!player && [delegate respondsToSelector:@selector(delegate)]) {
+        id overlayVC = [delegate delegate];
+        if ([overlayVC respondsToSelector:@selector(parentViewController)])
+            player = (YTPlayerViewController *)[overlayVC parentViewController];
+    }
+    if (!player) player = YouModSleepTimerPlayer;
     YouModSleepTimerPlayer = player;
     YTDefaultSheetController *sheet = [%c(YTDefaultSheetController) sheetControllerWithParentResponder:nil];
     NSArray *timerRows = @[

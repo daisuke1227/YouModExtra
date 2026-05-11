@@ -5,7 +5,15 @@ static BOOL isDarkMode(UIView *view) {
     if ([view respondsToSelector:@selector(_mapkit_isDarkModeEnabled)]) {
         return view._mapkit_isDarkModeEnabled;
     }
-    return view._viewControllerForAncestor.traitCollection.userInterfaceStyle == UIUserInterfaceStyleDark;
+    UIViewController *vc = [view respondsToSelector:@selector(_viewControllerForAncestor)] ? view._viewControllerForAncestor : nil;
+    if (vc) {
+        return vc.traitCollection.userInterfaceStyle == UIUserInterfaceStyleDark;
+    }
+    // Fallback to view's trait collection if available
+    if ([view respondsToSelector:@selector(traitCollection)]) {
+        return view.traitCollection.userInterfaceStyle == UIUserInterfaceStyleDark;
+    }
+    return NO;
 }
 
 // OLED theme (uYouEnhanced)

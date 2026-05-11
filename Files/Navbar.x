@@ -70,7 +70,10 @@
     }
     if (IS_ENABLED(CenterYTLogo)) {
         for (UIView *subview in self.subviews) {
-            if ([subview.accessibilityIdentifier isEqualToString:@"id.yoodle.logo"]) {
+            if ([subview.accessibilityIdentifier isEqualToString:@"id.yoodle.logo"] || 
+                [subview.accessibilityIdentifier isEqualToString:@"id.youtube.logo"] ||
+                [subview.accessibilityIdentifier isEqualToString:@"id.premium.logo"] ||
+                [NSStringFromClass(subview.class) containsString:@"Logo"]) {
                 CGFloat parentWidth = self.bounds.size.width;
                 CGFloat subviewWidth = subview.frame.size.width;
                 CGRect frame = subview.frame;

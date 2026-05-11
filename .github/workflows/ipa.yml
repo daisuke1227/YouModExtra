@@ -300,8 +300,9 @@ jobs:
         run: |
           cd YouMod
           echo "YOUMOD_VERSION=$(grep '^Version:' control | cut -d ' ' -f2)" >> $GITHUB_ENV
+          sed -i 's/if (\[subview.accessibilityIdentifier isEqualToString:@"id.yoodle.logo"\])/if (\[subview.accessibilityIdentifier isEqualToString:@"id.yoodle.logo"\] || \[subview.accessibilityIdentifier isEqualToString:@"id.youtube.logo"\] || \[subview.accessibilityIdentifier isEqualToString:@"id.premium.logo"\] || \[NSStringFromClass(subview.class) containsString:@"Logo"\])/g' Files/Navbar.x
           make clean package DEBUG=0 FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=rootless
-          mv packages/*.deb ${{ github.workspace }}/youmod.deb
+          cp packages/*.deb ${{ github.workspace }}/youmod.deb
         
       - name: Build YouPiP
         if: ${{ inputs.youpip }}
@@ -422,15 +423,48 @@ jobs:
           make clean package DEBUG=0 FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=rootless
           mv packages/*.deb ${{ github.workspace }}/ygc.deb
           
+      - name: Build TweakLoader
+        run: |
+          cd YouMod/TweakLoader
+          make clean package DEBUG=0 FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=rootless
+          mv packages/*.deb ${{ github.workspace }}/tweakloader.deb
+          
       - name: Inject Tweaks Into IPA
         run: |
-          tweaks="OpenYouTubeSafariExtension.appex"
-
+          mkdir -p Tweaks Frameworks
+          
           for f in *.deb; do
-            tweaks="$tweaks $f"
+            if [ "$f" != "tweakloader.deb" ]; then
+              echo "Extracting $f..."
+              dpkg-deb -x "$f" tweak_ext
+              find tweak_ext -name "*.dylib" -exec mv {} Tweaks/ \;
+              find tweak_ext -name "*.bundle" -exec mv {} . \;
+              find tweak_ext -name "*.framework" -exec mv {} Frameworks/ \;
+              rm -rf tweak_ext
+            fi
           done
           
-          cyan -i youtube.ipa -o YouMod_${{ env.YT_VERSION }}_v${{ env.YOUMOD_VERSION }}.ipa -uwef $tweaks -n "${{ inputs.display_name }}" -b ${{ inputs.bundle_id }}
+          # Clean up frameworks from within bundles to avoid duplication and signing issues
+          find . -name "*.bundle" -type d -exec rm -rf {}/Frameworks \; 2>/dev/null || true
+
+          bundles=""
+          for b in *.bundle; do
+            if [ -d "$b" ]; then
+              bundles="$bundles $b"
+            fi
+          done
+
+          frameworks=""
+          for fr in Frameworks/*.framework; do
+            if [ -d "$fr" ]; then
+              frameworks="$frameworks $fr"
+            fi
+          done
+          
+          echo "Bundles to inject: $bundles"
+          echo "Frameworks to inject: $frameworks"
+          
+          cyan -i youtube.ipa -o YouMod_${{ env.YT_VERSION }}_v${{ env.YOUMOD_VERSION }}.ipa -uwef tweakloader.deb Tweaks OpenYouTubeSafariExtension.appex $bundles $frameworks -n "${{ inputs.display_name }}" -b ${{ inputs.bundle_id }}
 
       - name: Create a Draft Release
         uses: softprops/action-gh-release@v3

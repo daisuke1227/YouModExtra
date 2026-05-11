@@ -583,7 +583,38 @@ static NSString *GetCacheSize() { // YTLite - @dayanch96
             BASIC_SWITCH(@"Old playlist minibar", @"Use the older playlist panel minibar behavior.", PlaylistOldMinibar),
             BASIC_SWITCH(@"Disable RTL formatting", @"Force left-to-right paragraph direction.", DisableRTL),
             BASIC_SWITCH(@"Sleep timer", @"Enable a two-finger long press on the player to start a sleep timer.", SleepTimerEnabled),
-        ];        
+            pickerItem(@"Sleep timer duration", @"Sleep timer duration", @[@"Off", @"5 min", @"10 min", @"15 min", @"20 min", @"30 min", @"45 min", @"60 min"], CustomSleepTimerMinutes),
+            [YTSettingsSectionItemClass itemWithTitle:@"Custom timer minutes (comma)"
+                titleDescription:@"Enter minutes like 2,5,12,30 (overrides above list)"
+                accessibilityIdentifier:nil
+                detailTextBlock:^NSString * {
+                    NSString *list = [[NSUserDefaults standardUserDefaults] stringForKey:@"CustomSleepTimerMinutesList"];
+                    return list.length ? list : @"None";
+                }
+                selectBlock:^BOOL (YTSettingsCell *cell, NSUInteger arg1) {
+                    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Custom Timer Minutes" message:@"Enter minutes separated by commas (e.g., 2,7,12,25)" preferredStyle:UIAlertControllerStyleAlert];
+                    [alert addTextFieldWithConfigurationHandler:^(UITextField *textField) {
+                        textField.text = [[NSUserDefaults standardUserDefaults] stringForKey:@"CustomSleepTimerMinutesList"];
+                        textField.placeholder = @"2,5,10,15,20,30,45,60";
+                        textField.keyboardType = UIKeyboardTypeNumbersAndPunctuation;
+                    }];
+                    [alert addAction:[UIAlertAction actionWithTitle:@"Save" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
+                        NSString *text = alert.textFields.firstObject.text;
+                        // Allow digits and commas
+                        NSCharacterSet *invalidChars = [[NSCharacterSet characterSetWithCharactersInString:@"0123456789,"] invertedSet];
+                        if ([text rangeOfCharacterFromSet:invalidChars].location == NSNotFound) {
+                            [[NSUserDefaults standardUserDefaults] setObject:text forKey:@"CustomSleepTimerMinutesList"];
+                        } else {
+                            [[NSUserDefaults standardUserDefaults] setObject:@"" forKey:@"CustomSleepTimerMinutesList"];
+                        }
+                        [[NSUserDefaults standardUserDefaults] synchronize];
+                        [settingsViewController reloadData];
+                    }]];
+                    [alert addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
+                    [settingsViewController presentViewController:alert animated:YES completion:nil];
+                    return YES;
+                }],
+        ];
         YTSettingsPickerViewController *picker = [[%c(YTSettingsPickerViewController) alloc] initWithNavTitle:LOC(@"MISCELLANEOUS") pickerSectionTitle:nil rows:rows selectedItemIndex:0 parentResponder:[self parentResponder]];
         [settingsViewController pushViewController:picker];
         return YES;

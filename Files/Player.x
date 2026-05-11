@@ -233,12 +233,18 @@ static void YouModAddEndTime(YTPlayerViewController *self, YTSingleVideoControll
 %end
 
 %hook YTPlayerViewController
+%property (nonatomic, retain) UILongPressGestureRecognizer *YouModSleepTimerGesture;
+%property (nonatomic, retain) NSTimer *YouModSleepTimer;
+
 - (void)loadWithPlayerTransition:(id)arg1 playbackConfig:(id)arg2 {
     %orig;
     YouModDownloadSetCurrentPlayer(self);
     YouModApplyYTLitePlaybackDefaults(self);
     if (IS_ENABLED(AutoFullScreen)) [self performSelector:@selector(YouModAutoFullscreen) withObject:nil afterDelay:0.75];
     if (IS_ENABLED(DisablesCaptions)) [self performSelector:@selector(YouModTurnOffCaptions) withObject:nil afterDelay:1.0];
+    if (IS_ENABLED(SleepTimerEnabled)) {
+        [self setupSleepTimerGesture];
+    }
 }
 
 - (void)prepareToLoadWithPlayerTransition:(id)arg1 expectedLayout:(id)arg2 {
@@ -247,6 +253,9 @@ static void YouModAddEndTime(YTPlayerViewController *self, YTSingleVideoControll
     YouModApplyYTLitePlaybackDefaults(self);
     if (IS_ENABLED(AutoFullScreen)) [self performSelector:@selector(YouModAutoFullscreen) withObject:nil afterDelay:0.75];
     if (IS_ENABLED(DisablesCaptions)) [self performSelector:@selector(YouModTurnOffCaptions) withObject:nil afterDelay:1.0];
+    if (IS_ENABLED(SleepTimerEnabled)) {
+        [self setupSleepTimerGesture];
+    }
 }
 
 %new
@@ -262,18 +271,6 @@ static void YouModAddEndTime(YTPlayerViewController *self, YTSingleVideoControll
     [watchController showFullScreen];
 }
 
-/*
-- (void)singleVideo:(YTSingleVideoController *)video currentVideoTimeDidChange:(YTSingleVideoTime *)time {
-    %orig;
-    YouModAddEndTime(self, video, time);
-}
-
-- (void)potentiallyMutatedSingleVideo:(YTSingleVideoController *)video currentVideoTimeDidChange:(YTSingleVideoTime *)time {
-    %orig;
-    YouModAddEndTime(self, video, time);
-}
-*/
-
 - (void)singleVideo:(YTSingleVideoController *)video currentVideoTimeDidChange:(YTSingleVideoTime *)time {
     %orig;
     YouModHandleYTLiteTimeUpdate(self, video, time);
@@ -288,6 +285,147 @@ static void YouModAddEndTime(YTPlayerViewController *self, YTSingleVideoControll
     playbackRate = rate;
     %orig;
 }
+
+%new
+- (void)setupSleepTimerGesture {
+    if (self.YouModSleepTimerGesture) return;
+    self.YouModSleepTimerGesture = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(YouModHandleSleepTimerGesture:)];
+    self.YouModSleepTimerGesture.numberOfTouchesRequired = 2;
+    self.YouModSleepTimerGesture.minimumPressDuration = 2.0; // 2 second delay before menu appears
+    self.YouModSleepTimerGesture.cancelsTouchesInView = YES;
+    self.YouModSleepTimerGesture.delegate = self;
+    // Add to both playerView and main view for reliability
+    if (self.playerView) {
+        [self.playerView addGestureRecognizer:self.YouModSleepTimerGesture];
+    } else {
+        [self.view addGestureRecognizer:self.YouModSleepTimerGesture];
+    }
+    
+    // Remove any other long press gestures on the same views to prevent default YouTube menu
+    UIView *targetView = self.playerView ?: self.view;
+    NSMutableArray *gesturesToRemove = [NSMutableArray array];
+    for (UIGestureRecognizer *gesture in targetView.gestureRecognizers) {
+        if ([gesture isKindOfClass:[UILongPressGestureRecognizer class]] && gesture != self.YouModSleepTimerGesture) {
+            [gesturesToRemove addObject:gesture];
+        }
+    }
+    for (UIGestureRecognizer *gesture in gesturesToRemove) {
+        [targetView removeGestureRecognizer:gesture];
+    }
+}
+
+- (void)viewDidAppear:(BOOL)animated {
+    %orig;
+    if (IS_ENABLED(SleepTimerEnabled) && !self.YouModSleepTimerGesture) {
+        [self setupSleepTimerGesture];
+    }
+}
+
+%new
+- (void)YouModHandleSleepTimerGesture:(UILongPressGestureRecognizer *)gesture {
+    if (gesture.state == UIGestureRecognizerStateBegan) {
+        NSInteger customIndex = INTFORVAL(CustomSleepTimerMinutes);
+        if (customIndex > 0) {
+            NSArray *minutesArray = @[@5, @10, @15, @20, @30, @45, @60];
+            if (customIndex-1 < minutesArray.count) {
+                int minutes = [minutesArray[customIndex-1] intValue];
+                [self YouModStartSleepTimerWithMinutes:minutes];
+                return;
+            }
+        }
+        // Check for custom comma-separated minutes list from settings
+        NSString *customList = [[NSUserDefaults standardUserDefaults] stringForKey:@"CustomSleepTimerMinutesList"];
+        NSArray *options = nil;
+        if (customList.length > 0) {
+            NSMutableArray *customMinutes = [NSMutableArray array];
+            NSArray *parts = [customList componentsSeparatedByString:@","];
+            for (NSString *part in parts) {
+                int minutes = [part intValue];
+                if (minutes > 0 && minutes <= 720) { // Limit to 12 hours max
+                    [customMinutes addObject:@(minutes)];
+                }
+            }
+            if (customMinutes.count > 0) {
+                options = customMinutes.copy;
+            }
+        }
+        if (!options) {
+            options = @[@5, @10, @15, @20, @30, @45, @60];
+        }
+        UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Sleep Timer" message:@"Set timer to pause video after (minutes)" preferredStyle:UIAlertControllerStyleActionSheet];
+        for (NSNumber *minutes in options) {
+            [alert addAction:[UIAlertAction actionWithTitle:[NSString stringWithFormat:@"%@ minutes", minutes] style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
+                [self YouModStartSleepTimerWithMinutes:minutes.intValue];
+            }]];
+        }
+        [alert addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
+        UIViewController *topVC = self.view.window.rootViewController;
+        UIViewController *presentingVC = nil;
+        while (topVC.presentedViewController) {
+            presentingVC = topVC;
+            topVC = topVC.presentedViewController;
+        }
+        // If there's an existing presented controller (like a YouTube menu), dismiss it first
+        if (presentingVC) {
+            [presentingVC dismissViewControllerAnimated:NO completion:^{
+                [presentingVC presentViewController:alert animated:YES completion:nil];
+            }];
+        } else {
+            [topVC presentViewController:alert animated:YES completion:nil];
+        }
+    }
+}
+%new
+- (void)YouModStartSleepTimerWithMinutes:(int)minutes {
+    [self YouModCancelSleepTimer];
+    self.YouModSleepTimer = [NSTimer scheduledTimerWithTimeInterval:minutes*60 target:self selector:@selector(YouModSleepTimerFired) userInfo:nil repeats:NO];
+    [self showSleepTimerHUD:[NSString stringWithFormat:@"Sleep timer set for %d min", minutes]];
+}
+
+%new
+- (void)YouModSleepTimerFired {
+    [self pause];
+    [self YouModCancelSleepTimer];
+    [self showSleepTimerHUD:@"Video paused by sleep timer"];
+}
+
+%new
+- (void)YouModCancelSleepTimer {
+    if (self.YouModSleepTimer) {
+        [self.YouModSleepTimer invalidate];
+        self.YouModSleepTimer = nil;
+    }
+}
+
+%new
+- (void)showSleepTimerHUD:(NSString *)message {
+    UILabel *hud = [[UILabel alloc] initWithFrame:CGRectMake(0, 0, 220, 40)];
+    hud.backgroundColor = [UIColor colorWithWhite:0 alpha:0.7];
+    hud.textColor = [UIColor whiteColor];
+    hud.textAlignment = NSTextAlignmentCenter;
+    hud.text = message;
+    hud.layer.cornerRadius = 8;
+    hud.clipsToBounds = YES;
+    hud.center = CGPointMake(self.view.bounds.size.width/2, self.view.bounds.size.height/2);
+    [self.view addSubview:hud];
+    [UIView animateWithDuration:2.0 animations:^{
+        hud.alpha = 0;
+    } completion:^(BOOL finished) {
+        [hud removeFromSuperview];
+    }];
+}
+
+%new
+- (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldRecognizeSimultaneouslyWithGestureRecognizer:(UIGestureRecognizer *)otherGestureRecognizer {
+    if (gestureRecognizer == self.YouModSleepTimerGesture) {
+        return NO; // Don't allow simultaneous recognition with other gestures (e.g., YouTube's long press)
+    }
+    if (gestureRecognizer == self.YouModPanGesture) {
+        return NO;
+    }
+    return YES;
+}
+
 %end
 
 /*

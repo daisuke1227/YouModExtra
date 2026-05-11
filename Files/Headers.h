@@ -214,6 +214,7 @@
 #define PlaylistOldMinibar @"YouModPlaylistOldMinibar"
 #define DisableRTL @"YouModDisableRTL"
 #define SleepTimerEnabled @"YouModSleepTimerEnabled"
+#define CustomSleepTimerMinutes @"YouModCustomSleepTimerMinutes"
 
 #define YT_BUNDLE_ID @"com.google.ios.youtube"
 #define YT_NAME @"YouTube"
@@ -274,13 +275,21 @@ typedef NS_ENUM(NSUInteger, GestureSection) {
 @interface YTPlayerViewController (YouMod) <UIGestureRecognizerDelegate>
 @property (nonatomic, retain) UIPanGestureRecognizer *YouModPanGesture;
 @property (nonatomic, retain) UILabel *YouModGestureHUD;
+@property (nonatomic, retain) UILongPressGestureRecognizer *YouModSleepTimerGesture;
+@property (nonatomic, retain) NSTimer *YouModSleepTimer;
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldRecognizeSimultaneouslyWithGestureRecognizer:(UIGestureRecognizer *)otherGestureRecognizer;
 - (void)YouModAutoFullscreen;
 - (void)YouModTurnOffCaptions;
 - (void)setActiveCaptionTrack:(id)arg1 source:(long long)arg2;
 - (void)setPlaybackRate:(float)rate;
+- (void)pause;
+- (void)setupSleepTimerGesture;
+- (void)YouModHandleSleepTimerGesture:(UILongPressGestureRecognizer *)gesture;
+- (void)YouModStartSleepTimerWithMinutes:(int)minutes;
+- (void)YouModSleepTimerFired;
+- (void)YouModCancelSleepTimer;
+- (void)showSleepTimerHUD:(NSString *)message;
 @end
-
 @interface SSOConfiguration : NSObject
 @end
 
